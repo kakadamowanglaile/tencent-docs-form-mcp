@@ -13,7 +13,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from browser_login import login_with_browser
 from official_mcp import OFFICIAL_MCP_URL, official_client
-from openapi_client import openapi_client
+from openapi_auth import authorize_interactively, clear_openapi_tokens
+from openapi_client import load_openapi_credentials, openapi_client
 from tencent_drive import FileListSource, TencentDriveClient
 from tencent_form import (
     TencentDocsError,
@@ -680,6 +681,53 @@ async def tencent_docs_openapi_status(
 
 
 @mcp.tool(
+    title="授权登录腾讯文档 Open API",
+    annotations=ToolAnnotations(
+        read_only_hint=False,
+        destructive_hint=False,
+        idempotent_hint=False,
+        open_world_hint=True,
+    ),
+)
+async def tencent_docs_openapi_login(
+    timeout: Annotated[
+        int,
+        Field(ge=10, le=900, description="等待用户在官方页面授权的秒数。"),
+    ] = 300,
+) -> dict:
+    """使用用户自己的开放平台应用，打开腾讯官方授权页并自动保存 Token。"""
+    try:
+        result = await asyncio.to_thread(authorize_interactively, timeout)
+        openapi_client.credentials = load_openapi_credentials(required=True)
+        return result
+    except TencentDocsError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+@mcp.tool(
+    title="退出本机腾讯文档 Open API",
+    annotations=ToolAnnotations(
+        read_only_hint=False,
+        destructive_hint=False,
+        idempotent_hint=True,
+        open_world_hint=False,
+    ),
+)
+async def tencent_docs_openapi_logout() -> dict:
+    """删除本机保存的用户 Token；应用配置保留，不会撤销腾讯账号端的授权。"""
+    try:
+        removed = await asyncio.to_thread(clear_openapi_tokens)
+        openapi_client.credentials = None
+        return {
+            "local_tokens_removed": removed,
+            "application_configuration_kept": True,
+            "tencent_authorization_revoked": False,
+        }
+    except TencentDocsError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+@mcp.tool(
     title="通过 Open API 收藏腾讯文档",
     annotations=ToolAnnotations(
         read_only_hint=False,
@@ -820,6 +868,37 @@ async def tencent_docs_openapi_get_user_access(
     """查询当前授权用户的查看、编辑、下载、副本和水印权限。"""
     try:
         return await openapi_client.get_user_access(file_id)
+    except TencentDocsError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+@mcp.tool(
+    title="查看腾讯文档完整分享权限",
+    annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True),
+)
+async def tencent_docs_openapi_get_file_permission(
+    file_id: Annotated[str, Field(min_length=1, max_length=300, description="文档 fileID。")],
+) -> dict:
+    """读取分享策略、复制下载打印和只读、可写批注设置。"""
+    try:
+        return await openapi_client.get_file_permission(file_id)
+    except TencentDocsError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+@mcp.tool(
+    title="查询腾讯文档文件夹权限",
+    annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True),
+)
+async def tencent_docs_openapi_get_folder_permission(
+    folder_id: Annotated[
+        str,
+        Field(min_length=1, max_length=300, description="文件夹 folderID。"),
+    ],
+) -> dict:
+    """读取当前用户对文件夹的查看、编辑、分享和添加成员能力。"""
+    try:
+        return await openapi_client.get_folder_permission(folder_id)
     except TencentDocsError as exc:
         raise ToolError(str(exc)) from exc
 

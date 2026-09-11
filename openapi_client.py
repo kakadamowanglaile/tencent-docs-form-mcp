@@ -1,7 +1,7 @@
 """腾讯文档正式 Open API 客户端。
 
-这里仅调用腾讯文档开放平台公开文档中的接口。凭据从进程环境读取，
-不会写入项目文件，也不会出现在工具返回值中。
+这里仅调用腾讯文档开放平台公开文档中的接口。凭据从进程环境或
+操作系统密钥库读取，不会写入项目文件，也不会出现在工具返回值中。
 """
 
 from __future__ import annotations
@@ -43,22 +43,37 @@ class OpenAPICredentials:
 
 
 def load_openapi_credentials(required: bool = False) -> OpenAPICredentials | None:
-    """从环境变量读取 Open API 凭据。"""
+    """从环境变量或操作系统密钥库读取 Open API 凭据。"""
 
-    credentials = OpenAPICredentials(
+    environment_credentials = OpenAPICredentials(
         client_id=os.environ.get(CLIENT_ID_ENV, "").strip(),
         client_secret=os.environ.get(CLIENT_SECRET_ENV, "").strip(),
         open_id=os.environ.get(OPEN_ID_ENV, "").strip(),
         access_token=os.environ.get(ACCESS_TOKEN_ENV, "").strip(),
         refresh_token=os.environ.get(REFRESH_TOKEN_ENV, "").strip(),
     )
-    if credentials.can_call or credentials.can_refresh:
-        return credentials
+    if environment_credentials.can_call or environment_credentials.can_refresh:
+        return environment_credentials
+    try:
+        from openapi_auth import load_openapi_profile
+
+        profile = load_openapi_profile(required=False)
+    except TencentDocsError:
+        profile = None
+    if profile is not None:
+        credentials = OpenAPICredentials(
+            client_id=environment_credentials.client_id or profile.client_id,
+            client_secret=environment_credentials.client_secret or profile.client_secret,
+            open_id=environment_credentials.open_id or profile.open_id,
+            access_token=environment_credentials.access_token or profile.access_token,
+            refresh_token=environment_credentials.refresh_token or profile.refresh_token,
+        )
+        if credentials.can_call or credentials.can_refresh:
+            return credentials
     if required:
         raise TencentDocsError(
-            "腾讯文档 Open API 尚未授权。请在 MCP 进程环境中设置 "
-            f"{CLIENT_ID_ENV}、{OPEN_ID_ENV}、{ACCESS_TOKEN_ENV}；"
-            "需要自动刷新时再设置 Client Secret 和 Refresh Token。"
+            "腾讯文档 Open API 尚未授权。请先运行 openapi_setup.py，"
+            "或在 MCP 进程环境中提供 Open API 凭据。"
         )
     return None
 
@@ -91,8 +106,17 @@ class TencentDocsOpenAPIClient:
 
     def configuration_status(self) -> dict[str, Any]:
         credentials = self.credentials or load_openapi_credentials(required=False)
+        try:
+            from openapi_auth import load_openapi_profile
+
+            profile = load_openapi_profile(required=False)
+        except TencentDocsError:
+            profile = None
         return {
             "configured": bool(credentials and (credentials.can_call or credentials.can_refresh)),
+            "app_configured": bool(profile and profile.app_configured)
+            or bool(credentials and credentials.client_id and credentials.client_secret),
+            "authorized": bool(credentials and credentials.can_call),
             "client_id_configured": bool(credentials and credentials.client_id),
             "open_id_configured": bool(credentials and credentials.open_id),
             "access_token_configured": bool(credentials and credentials.access_token),
@@ -139,7 +163,26 @@ class TencentDocsOpenAPIClient:
         open_id = str(payload.get("user_id") or credentials.open_id).strip()
         if not token or not open_id:
             raise TencentDocsError("腾讯文档 Token 接口没有返回 Access Token 或 Open ID。")
-        self.credentials = replace(credentials, access_token=token, open_id=open_id)
+        refreshed_token = str(payload.get("refresh_token") or "").strip()
+        self.credentials = replace(
+            credentials,
+            access_token=token,
+            open_id=open_id,
+            refresh_token=refreshed_token or credentials.refresh_token,
+        )
+        try:
+            from openapi_auth import update_saved_openapi_tokens
+
+            update_saved_openapi_tokens(
+                client_id=credentials.client_id,
+                open_id=open_id,
+                access_token=token,
+                refresh_token=refreshed_token or None,
+                expires_in=int(payload.get("expires_in") or 0) or None,
+            )
+        except TencentDocsError:
+            # 环境变量模式可能没有本机凭据库，不影响当前请求。
+            pass
 
     async def request(
         self,
@@ -303,6 +346,18 @@ class TencentDocsOpenAPIClient:
     async def get_user_access(self, file_id: str) -> dict[str, Any]:
         file_path = _segment(file_id, "fileID")
         return await self.request("GET", f"/openapi/drive/v2/files/{file_path}/access")
+
+    async def get_file_permission(self, file_id: str) -> dict[str, Any]:
+        file_path = _segment(file_id, "fileID")
+        return await self.request(
+            "GET", f"/openapi/drive/v2/files/{file_path}/permission"
+        )
+
+    async def get_folder_permission(self, folder_id: str) -> dict[str, Any]:
+        folder_path = _segment(folder_id, "folderID")
+        return await self.request(
+            "GET", f"/openapi/drive/v2/folders/{folder_path}/permission"
+        )
 
     async def transfer_ownership(self, file_id: str, owner_open_id: str) -> dict[str, Any]:
         file_path = _segment(file_id, "fileID")

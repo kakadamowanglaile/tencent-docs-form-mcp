@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from openapi_client import (
@@ -41,7 +42,9 @@ class Recorder:
 
 class OpenAPICredentialTests(unittest.TestCase):
     def test_requires_complete_call_or_refresh_credentials(self) -> None:
-        with patch.dict(os.environ, {}, clear=True):
+        with patch.dict(os.environ, {}, clear=True), patch(
+            "openapi_auth.load_openapi_profile", return_value=None
+        ):
             self.assertIsNone(load_openapi_credentials(required=False))
             with self.assertRaises(TencentDocsError):
                 load_openapi_credentials(required=True)
@@ -54,7 +57,8 @@ class OpenAPICredentialTests(unittest.TestCase):
             client_secret="client-secret",
             refresh_token="refresh-secret",
         )
-        status = TencentDocsOpenAPIClient(credentials).configuration_status()
+        with patch("openapi_auth.load_openapi_profile", return_value=None):
+            status = TencentDocsOpenAPIClient(credentials).configuration_status()
 
         rendered = repr(status)
         self.assertTrue(status["configured"])
@@ -63,6 +67,43 @@ class OpenAPICredentialTests(unittest.TestCase):
         self.assertNotIn("client-secret", rendered)
         self.assertNotIn("refresh-secret", rendered)
         self.assertNotIn("user", rendered)
+
+    def test_loads_credentials_saved_in_system_keyring(self) -> None:
+        saved = SimpleNamespace(
+            client_id="saved-client",
+            client_secret="saved-secret",
+            open_id="saved-user",
+            access_token="saved-access",
+            refresh_token="saved-refresh",
+        )
+        with patch.dict(os.environ, {}, clear=True), patch(
+            "openapi_auth.load_openapi_profile", return_value=saved
+        ):
+            credentials = load_openapi_credentials(required=True)
+
+        self.assertIsNotNone(credentials)
+        assert credentials is not None
+        self.assertTrue(credentials.can_call)
+        self.assertTrue(credentials.can_refresh)
+        self.assertEqual(credentials.client_id, "saved-client")
+
+    def test_status_distinguishes_app_configuration_from_user_authorization(self) -> None:
+        profile = SimpleNamespace(
+            app_configured=True,
+            client_id="saved-client",
+            client_secret="saved-secret",
+            open_id="",
+            access_token="",
+            refresh_token="",
+        )
+        with patch.dict(os.environ, {}, clear=True), patch(
+            "openapi_auth.load_openapi_profile", return_value=profile
+        ):
+            status = TencentDocsOpenAPIClient().configuration_status()
+
+        self.assertFalse(status["configured"])
+        self.assertTrue(status["app_configured"])
+        self.assertFalse(status["authorized"])
 
 
 class OpenAPIRequestTests(unittest.IsolatedAsyncioTestCase):
@@ -102,6 +143,16 @@ class OpenAPIRequestTests(unittest.IsolatedAsyncioTestCase):
             (self.client.create_shortcut("f", "/"), "POST", "/files/f/shortcut"),
             (self.client.recover_file("f"), "PATCH", "/files/f/recover"),
             (self.client.get_user_access("f"), "GET", "/files/f/access"),
+            (
+                self.client.get_file_permission("f"),
+                "GET",
+                "/files/f/permission",
+            ),
+            (
+                self.client.get_folder_permission("folder"),
+                "GET",
+                "/folders/folder/permission",
+            ),
             (
                 self.client.transfer_ownership("f", "new-user"),
                 "PATCH",
@@ -212,7 +263,8 @@ class OpenAPIRequestTests(unittest.IsolatedAsyncioTestCase):
             requester=recorder,
         )
 
-        await client.get_usage()
+        with patch("openapi_auth.update_saved_openapi_tokens", return_value=False):
+            await client.get_usage()
 
         self.assertEqual(len(recorder.calls), 3)
         self.assertTrue(recorder.calls[1][1].endswith("/oauth/v2/token"))

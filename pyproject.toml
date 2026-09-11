@@ -1,6 +1,6 @@
 [project]
 name = "tencent-docs-complete-mcp"
-version = "0.3.0"
+version = "0.4.0"
 description = "代理腾讯文档官方 MCP，补充未打包的正式 Open API 和收集表扩展"
 readme = "README.md"
 license = "MIT"
@@ -8,6 +8,7 @@ requires-python = ">=3.10"
 dependencies = [
   "browser-cookie3==0.20.1",
   "httpx2==2.12.0",
+  "keyring==25.7.0",
   "mcp==2.2.0",
   "pywin32>=311; sys_platform == 'win32'",
   "websocket-client==1.8.0",

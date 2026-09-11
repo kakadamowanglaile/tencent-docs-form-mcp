@@ -11,6 +11,28 @@ from server import mcp
 
 
 class OpenAPIMCPTests(unittest.IsolatedAsyncioTestCase):
+    async def test_login_uses_local_oauth_profile_without_returning_secrets(self) -> None:
+        result_data = {
+            "authorized": True,
+            "token_saved_to_system_keyring": True,
+            "expires_at": 123,
+        }
+        with patch(
+            "server.authorize_interactively", return_value=result_data
+        ) as authorize, patch(
+            "server.load_openapi_credentials", return_value=object()
+        ):
+            async with Client(mcp, raise_exceptions=True) as client:
+                result = await client.call_tool(
+                    "tencent_docs_openapi_login", {"timeout": 60}
+                )
+
+        authorize.assert_called_once_with(60)
+        rendered = result.content[0].text
+        self.assertTrue(json.loads(rendered)["authorized"])
+        self.assertNotIn("access_token", rendered)
+        self.assertNotIn("client_secret", rendered)
+
     async def test_calls_read_only_openapi_tool_through_mcp(self) -> None:
         with patch(
             "server.openapi_client.get_unread_count",

@@ -6,7 +6,27 @@
 tencent_docs_openapi_status {"validate": true}
 ```
 
-如果返回未配置，请先完成腾讯文档开放平台 OAuth2 授权，并把凭据放入本机 MCP 进程环境。不要在对话中粘贴真实 Token 或 Client Secret。
+如果返回未配置，先运行 `openapi_setup.py`，隐藏输入自己应用的 Client Secret。配置保存后，AI 可调用：
+
+```text
+tencent_docs_openapi_login {"timeout": 300}
+```
+
+浏览器会打开腾讯官方授权页。完成授权后 Token 自动保存到操作系统密钥库。不要在 AI 对话中粘贴真实 Token 或 Client Secret。
+
+## 读取完整权限
+
+```json
+{"file_id": "300000000$EXAMPLE"}
+```
+
+文档使用 `tencent_docs_openapi_get_file_permission`，可读取分享策略、复制和批注开关。
+
+```json
+{"folder_id": "FOLDER_ID"}
+```
+
+文件夹使用 `tencent_docs_openapi_get_folder_permission`，可读取查看、编辑、分享和添加成员能力。
 
 ## 设置收集表截止时间
 
