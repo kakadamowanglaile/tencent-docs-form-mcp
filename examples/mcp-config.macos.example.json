@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "tencent-docs-form": {
+      "type": "stdio",
+      "command": "/ABSOLUTE/PATH/tencent-docs-form-mcp/.venv/bin/python",
+      "args": [
+        "/ABSOLUTE/PATH/tencent-docs-form-mcp/server.py"
+      ],
+      "env": {
+        "TENCENT_DOCS_USE_BROWSER_COOKIES": "1",
+        "TENCENT_DOCS_BROWSER": "chrome"
+      },
+      "timeout": 60000
+    }
+  }
+}

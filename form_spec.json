@@ -1,0 +1,24 @@
+{
+  "title": "测试收集表",
+  "subtitle": "用于验证腾讯文档原生收集表的问答题、单选题和多选题。",
+  "questions": [
+    {
+      "type": "SIMPLE",
+      "title": "请写一句测试反馈",
+      "required": true,
+      "placeholder": "请填写"
+    },
+    {
+      "type": "RADIO",
+      "title": "这个收集表是否显示正常？",
+      "required": true,
+      "options": ["正常", "有问题"]
+    },
+    {
+      "type": "CHECKBOX",
+      "title": "你看到了哪些题型？",
+      "required": true,
+      "options": ["问答题", "单选题", "多选题"]
+    }
+  ]
+}

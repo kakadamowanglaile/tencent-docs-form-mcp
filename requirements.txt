@@ -1,0 +1,2 @@
+browser-cookie3==0.20.1
+mcp==2.2.0
