@@ -1,6 +1,6 @@
 [project]
 name = "tencent-docs-complete-mcp"
-version = "0.5.1"
+version = "0.6.0"
 description = "代理腾讯文档官方 MCP，补充未打包的正式 Open API 和收集表扩展"
 readme = "README.md"
 license = "MIT"

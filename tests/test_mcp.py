@@ -22,7 +22,6 @@ class MCPProtocolTests(unittest.IsolatedAsyncioTestCase):
                 "tencent_docs_set_starred",
                 "tencent_docs_restore_file",
                 "tencent_docs_add_shortcut",
-                "tencent_docs_list_versions",
                 "tencent_docs_set_pinned",
                 "tencent_docs_permanently_delete_trash_item",
                 "tencent_docs_clear_trash",

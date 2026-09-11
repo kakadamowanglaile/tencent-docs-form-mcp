@@ -136,31 +136,6 @@ class TencentDriveClient(TencentFormClient):
             "already_exists": bool(payload.get("link_already_exist")),
         }
 
-    def list_versions(self, file_id: str) -> dict[str, Any]:
-        self._require_auth()
-        result = self._request_json(
-            "/api/drive/versions/list",
-            method="POST",
-            body={
-                "file_id": file_id,
-                "xsrf": self.auth.xsrf if self.auth else "",
-            },
-            referer=BASE_URL + "/desktop",
-        )
-        if (
-            result.get("retcode") == 320101
-            and result.get("msg") == "unsupported ext"
-        ):
-            return {
-                "file_id": file_id,
-                "supported": False,
-                "versions": [],
-                "reason": "腾讯云盘版本接口不支持该在线文档类型。",
-            }
-        result = self._ensure_success(result, "读取版本历史")
-        payload = result.get("result")
-        return {"file_id": file_id, "supported": True, "versions": payload}
-
     def set_pinned(self, file_id: str, folder_id: str, pinned: bool) -> dict[str, Any]:
         self._require_auth()
         path = (

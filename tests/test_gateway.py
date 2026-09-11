@@ -27,13 +27,16 @@ class GatewayTests(unittest.IsolatedAsyncioTestCase):
         params = type(
             "Params",
             (),
-            {"name": "tencent_docs_list_versions", "arguments": {"file_id": "abc"}},
+            {
+                "name": "tencent_docs_inspect_form",
+                "arguments": {"form_url": "https://docs.qq.com/form/page/abc"},
+            },
         )()
         with patch(
-            "server._list_versions_sync",
-            side_effect=TencentDocsError("该文件类型不支持版本历史。"),
+            "server._inspect_sync",
+            side_effect=TencentDocsError("无法读取该收集表。"),
         ):
             result = await _call_tool(None, params)
 
         self.assertTrue(result.is_error)
-        self.assertIn("该文件类型不支持版本历史。", result.content[0].text)
+        self.assertIn("无法读取该收集表。", result.content[0].text)

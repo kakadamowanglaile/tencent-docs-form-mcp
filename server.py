@@ -273,11 +273,6 @@ def _add_shortcut_sync(file_id: str, target_parent_id: str) -> dict:
     return TencentDriveClient(auth).add_shortcut(file_id, target_parent_id)
 
 
-def _list_versions_sync(file_id: str) -> dict:
-    auth = load_auth(required=True)
-    return TencentDriveClient(auth).list_versions(file_id)
-
-
 def _set_pinned_sync(file_id: str, folder_id: str, pinned: bool) -> dict:
     auth = load_auth(required=True)
     return TencentDriveClient(auth).set_pinned(file_id, folder_id, pinned)
@@ -424,20 +419,6 @@ async def tencent_docs_add_shortcut(
     """在指定文件夹中为现有文件添加快捷方式。"""
     try:
         return await asyncio.to_thread(_add_shortcut_sync, file_id, target_parent_id)
-    except TencentDocsError as exc:
-        raise ToolError(str(exc)) from exc
-
-
-@mcp.tool(
-    title="读取腾讯云盘上传文件版本",
-    annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True),
-)
-async def tencent_docs_list_versions(
-    file_id: Annotated[str, Field(min_length=1, max_length=200, description="文件 ID。")],
-) -> dict:
-    """读取云盘上传文件版本；在线文档返回 supported=false。"""
-    try:
-        return await asyncio.to_thread(_list_versions_sync, file_id)
     except TencentDocsError as exc:
         raise ToolError(str(exc)) from exc
 
