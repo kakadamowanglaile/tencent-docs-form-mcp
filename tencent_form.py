@@ -14,12 +14,12 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from dataclasses import dataclass
 from http.cookiejar import Cookie, CookieJar
 from http.cookies import SimpleCookie
 from pathlib import Path
 from typing import Any, Literal
-
 
 BASE_URL = "https://docs.qq.com"
 USER_AGENT = (
@@ -251,10 +251,15 @@ class TencentFormClient:
         method: str = "GET",
         params: dict[str, Any] | None = None,
         body: dict[str, Any] | list[Any] | None = None,
+        form: dict[str, Any] | None = None,
+        multipart: dict[str, Any] | None = None,
         referer: str = BASE_URL + "/",
     ) -> dict[str, Any]:
+        payload_count = sum(value is not None for value in (body, form, multipart))
+        if payload_count > 1:
+            raise TencentDocsError("JSON body、form 和 multipart 不能同时提供。")
         query = dict(params or {})
-        if self.auth is not None and self.auth.xsrf:
+        if self.auth is not None and self.auth.xsrf and form is None and multipart is None:
             query.setdefault("xsrf", self.auth.xsrf)
         url = BASE_URL + path
         if query:
@@ -270,6 +275,30 @@ class TencentFormClient:
         if body is not None:
             data = json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
             headers["Content-Type"] = "application/json"
+        elif form is not None:
+            form_data = dict(form)
+            if self.auth is not None and self.auth.xsrf:
+                form_data.setdefault("xsrf", self.auth.xsrf)
+            data = urllib.parse.urlencode(form_data).encode("utf-8")
+            headers["Content-Type"] = "application/x-www-form-urlencoded"
+        elif multipart is not None:
+            multipart_data = dict(multipart)
+            if self.auth is not None and self.auth.xsrf:
+                multipart_data.setdefault("xsrf", self.auth.xsrf)
+            boundary = "----TencentDocsMCP" + uuid.uuid4().hex
+            chunks: list[bytes] = []
+            for key, value in multipart_data.items():
+                chunks.extend(
+                    [
+                        f"--{boundary}\r\n".encode("ascii"),
+                        f'Content-Disposition: form-data; name="{key}"\r\n\r\n'.encode(),
+                        str(value).encode("utf-8"),
+                        b"\r\n",
+                    ]
+                )
+            chunks.append(f"--{boundary}--\r\n".encode("ascii"))
+            data = b"".join(chunks)
+            headers["Content-Type"] = f"multipart/form-data; boundary={boundary}"
         request = urllib.request.Request(url, data=data, headers=headers, method=method)
         payload = ""
         last_network_error: urllib.error.URLError | None = None

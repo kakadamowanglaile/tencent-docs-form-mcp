@@ -1,10 +1,10 @@
 {
   "mcpServers": {
-    "tencent-docs-form": {
+    "tencent-docs-complete": {
       "type": "stdio",
       "command": "C:\\ABSOLUTE\\PATH\\tencent-docs-form-mcp\\.venv\\Scripts\\python.exe",
       "args": [
-        "C:\\ABSOLUTE\\PATH\\tencent-docs-form-mcp\\server.py"
+        "C:\\ABSOLUTE\\PATH\\tencent-docs-form-mcp\\gateway.py"
       ],
       "env": {
         "TENCENT_DOCS_USE_SAVED_LOGIN": "1"

@@ -9,4 +9,4 @@ if [ ! -x "$PYTHON_BIN" ]; then
   exit 1
 fi
 
-exec "$PYTHON_BIN" "$SCRIPT_DIR/server.py"
+exec "$PYTHON_BIN" "$SCRIPT_DIR/gateway.py"

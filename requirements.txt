@@ -1,4 +1,5 @@
 browser-cookie3==0.20.1
+httpx2==2.12.0
 mcp==2.2.0
 pywin32>=311; sys_platform == "win32"
 websocket-client==1.8.0

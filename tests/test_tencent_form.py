@@ -10,13 +10,13 @@ from unittest.mock import patch
 
 from tencent_form import (
     TencentDocsError,
+    TencentFormClient,
     _load_raw_cookie,
     build_form_data,
     compare_spec,
     load_auth,
     parse_form_url,
     save_windows_auth,
-    TencentFormClient,
 )
 
 
@@ -123,9 +123,8 @@ class AuthTests(unittest.TestCase):
         )
         with patch.dict(os.environ, environment, clear=True), patch.dict(
             sys.modules, {"browser_cookie3": fake_module}
-        ):
-            with self.assertRaisesRegex(TencentDocsError, "不支持浏览器"):
-                load_auth(required=True)
+        ), self.assertRaisesRegex(TencentDocsError, "不支持浏览器"):
+            load_auth(required=True)
 
     def test_windows_saved_login_is_encrypted_and_loadable(self) -> None:
         fake_module = types.SimpleNamespace(

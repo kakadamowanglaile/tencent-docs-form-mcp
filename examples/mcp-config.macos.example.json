@@ -1,10 +1,10 @@
 {
   "mcpServers": {
-    "tencent-docs-form": {
+    "tencent-docs-complete": {
       "type": "stdio",
       "command": "/ABSOLUTE/PATH/tencent-docs-form-mcp/.venv/bin/python",
       "args": [
-        "/ABSOLUTE/PATH/tencent-docs-form-mcp/server.py"
+        "/ABSOLUTE/PATH/tencent-docs-form-mcp/gateway.py"
       ],
       "env": {
         "TENCENT_DOCS_USE_BROWSER_COOKIES": "1",

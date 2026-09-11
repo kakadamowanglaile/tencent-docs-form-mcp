@@ -1,12 +1,13 @@
 [project]
-name = "tencent-docs-form-mcp"
-version = "0.1.0"
-description = "在 WorkBuddy 中创建、编辑和发布腾讯文档原生收集表"
+name = "tencent-docs-complete-mcp"
+version = "0.2.0"
+description = "动态代理腾讯文档官方 MCP，并增加收集表和文件管理扩展"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
 dependencies = [
   "browser-cookie3==0.20.1",
+  "httpx2==2.12.0",
   "mcp==2.2.0",
   "pywin32>=311; sys_platform == 'win32'",
   "websocket-client==1.8.0",
