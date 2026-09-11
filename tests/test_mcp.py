@@ -33,6 +33,7 @@ class MCPProtocolTests(unittest.IsolatedAsyncioTestCase):
                 "tencent_docs_publish_form",
                 "tencent_docs_build_and_publish_form",
                 "tencent_docs_openapi_status",
+                "tencent_docs_openapi_setup",
                 "tencent_docs_openapi_login",
                 "tencent_docs_openapi_logout",
                 "tencent_docs_openapi_set_starred",

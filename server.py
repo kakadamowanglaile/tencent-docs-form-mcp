@@ -15,6 +15,7 @@ from browser_login import login_with_browser
 from official_mcp import OFFICIAL_MCP_URL, official_client
 from openapi_auth import authorize_interactively, clear_openapi_tokens
 from openapi_client import load_openapi_credentials, openapi_client
+from openapi_setup_ui import open_setup_ui
 from tencent_drive import FileListSource, TencentDriveClient
 from tencent_form import (
     TencentDocsError,
@@ -678,6 +679,23 @@ async def tencent_docs_openapi_status(
         except TencentDocsError as exc:
             raise ToolError(str(exc)) from exc
     return status
+
+
+@mcp.tool(
+    title="打开腾讯文档 Open API 授权窗口",
+    annotations=ToolAnnotations(
+        read_only_hint=False,
+        destructive_hint=False,
+        idempotent_hint=True,
+        open_world_hint=True,
+    ),
+)
+async def tencent_docs_openapi_setup() -> dict:
+    """打开仅限本机访问的设置页；首次配置应用，以后可直接点击授权。"""
+    try:
+        return await asyncio.to_thread(open_setup_ui)
+    except TencentDocsError as exc:
+        raise ToolError(str(exc)) from exc
 
 
 @mcp.tool(

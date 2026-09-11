@@ -22,7 +22,7 @@ description: 通过统一 MCP 使用腾讯文档官方 MCP、官方未打包的�
 11. 收藏、置顶、恢复和快捷方式优先调用同名的 `tencent_docs_openapi_*` 工具；只有 Open API 未配置且用户接受网页接口限制时，才调用旧扩展工具。
 12. 发布、暂停或设置收集截止时间时，优先调用 `tencent_docs_openapi_set_form_release`。
 13. 转让所有权必须确认目标 Open ID，并由用户明确授权后填写工具要求的确认词。
-14. `tencent_docs_openapi_status` 显示未授权时，若用户已运行 `openapi_setup.py` 保存自己的应用配置，调用 `tencent_docs_openapi_login`，并等待用户在腾讯官方页面确认。
+14. `tencent_docs_openapi_status` 显示应用未配置时，调用 `tencent_docs_openapi_setup` 打开本机设置窗口；应用已配置但未授权时，调用 `tencent_docs_openapi_login`，并等待用户在腾讯官方页面确认。
 15. 完整读取分享策略时使用 `tencent_docs_openapi_get_file_permission`；读取文件夹操作能力时使用 `tencent_docs_openapi_get_folder_permission`。
 
 ## 题型
@@ -45,7 +45,7 @@ description: 通过统一 MCP 使用腾讯文档官方 MCP、官方未打包的�
 - 官方 MCP Token 不得写入项目、回答、日志或测试快照。
 - 正式 Open API 使用单独的 `Client-Id`、`Open-Id`、`Access-Token`；这些值以及 Client Secret、Refresh Token 不得写入回答、日志或测试快照。
 - 先调用 `tencent_docs_openapi_status` 检查配置；需要验证有效性时使用 `validate=true`。
-- 每位用户使用自己的开放平台应用。Client Secret 只能通过 `openapi_setup.py` 的隐藏输入配置，不得要求用户在 AI 对话里粘贴。
+- 每位用户使用自己的开放平台应用。Client Secret 只能在 `tencent_docs_openapi_setup` 打开的本机页面，或 `openapi_setup.py --terminal` 的隐藏输入中配置；不得要求用户在 AI 对话里粘贴。
 - `tencent_docs_openapi_logout` 只删除本机 Token。用户如需撤销腾讯端授权，需在腾讯文档第三方应用授权管理中关闭。
 
 ## 已知限制

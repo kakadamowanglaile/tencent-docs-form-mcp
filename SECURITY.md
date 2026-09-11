@@ -16,6 +16,8 @@
 
 正式 Open API 需要腾讯文档开放平台应用的 OAuth2 授权。公开仓库不提供共享 Client Secret；每位使用者必须使用自己的开放平台应用并自行审核授权范围。
 
+`tencent_docs_openapi_setup` 和 `openapi_setup.py` 打开的设置页只监听 `127.0.0.1:49670-49679`。设置页校验 Host、Origin 和随机 CSRF Token，拒绝非本机来源；页面不加载第三方脚本。Client Secret 通过本机表单直接写入系统密钥库，不作为 MCP 参数传递。
+
 GitHub Pages 回调页是静态页，只把腾讯返回的一次性授权码和 `state` 导航到本机 `127.0.0.1:49680-49689` 的专用端口。它不接收 Client Secret 或任何 Token。授权码会出现在 HTTPS 回调 URL 中，可能被静态站点的请求日志记录；授权码有效期短、只能使用一次，且换取 Token 仍需要该用户自己的 Client Secret。
 
 ## 内部接口

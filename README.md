@@ -7,9 +7,9 @@
 
 - 动态代理腾讯文档官方 MCP 的实时 `tools/list`；2026-09-11 实测为 224 个官方工具。
 - 覆盖文档、表格、幻灯片、智能表、智能文档、流程图、OCR、导入导出、权限和文件管理。
-- 新增 24 个正式 Open API 相关工具：21 项官方 MCP 未完整打包的能力，加上授权登录、退出和状态检查。
+- 新增 25 个正式 Open API 相关工具：21 项官方 MCP 未完整打包的能力，加上设置窗口、授权登录、退出和状态检查。
 - 保留公开 API 仍未提供的收集表题目编辑等网页扩展能力。
-- 当前统一服务暴露 264 个不重名工具；官方 MCP 后续新增工具时，总数会动态变化。
+- 当前统一服务暴露 265 个不重名工具；官方 MCP 后续新增工具时，总数会动态变化。
 - 官方新增工具会在下次启动或缓存刷新后自动出现，不需要本项目重新发版。
 
 > 这是社区项目，不是腾讯官方产品。项目会分别标记官方 MCP、正式 Open API 和网页内部接口。只有前两类属于腾讯公开能力；网页内部接口可能随腾讯改版失效。
@@ -36,7 +36,8 @@ AI 产品本身如果不支持 MCP，无法直接加载本项目。Claude.ai、C
 | Windows 通过登录态新建、写入、发布、公开回读 | 已在 Windows 11 真机验证 |
 | macOS 自动获取官方 Token、动态读取 224 个工具 | 已实际验证 |
 | 官方工具经本地统一 MCP 转发 | 已实际调用验证 |
-| 正式 Open API 24 个相关工具的协议、参数、端点和错误处理 | 已通过模拟官方响应测试 |
+| 正式 Open API 25 个相关工具的协议、参数、端点和错误处理 | 已通过模拟官方响应测试 |
+| 本机授权窗口打开、字段隐藏与安全限制 | 已实际浏览器检查并通过自动测试 |
 | 标准 stdio 子进程启动、工具发现和调用 | 已测试；用于 Codex、Claude Code 等客户端 |
 | 正式 Open API 调用真实腾讯账号 | 等待开放平台应用 OAuth2 凭据，尚未验证 |
 | 最近/根目录/收藏/共享/回收站列表 | 已实际验证 |
@@ -86,15 +87,17 @@ powershell -ExecutionPolicy Bypass -File .\install-windows.ps1
 首次使用：
 
 1. 在开放平台应用中开通需要的权限并通过审核。
+
    - 读取文档分享权限：`scope.drive.file.permission.readonly` 或 `scope.drive.file.permission`
    - 读取文件夹操作权限：还可使用 `scope.drive.file.metadata`
+
 2. 把下列 HTTPS 回调地址加入应用白名单：
 
 ```text
 https://kakadamowanglaile.github.io/tencent-docs-form-mcp/
 ```
 
-3. 在项目目录运行：
+3. 双击项目根目录的 `授权腾讯文档.command`（macOS）或 `授权腾讯文档.bat`（Windows）。也可以在项目目录运行：
 
 macOS / Linux：
 
@@ -108,7 +111,9 @@ Windows PowerShell：
 .\.venv\Scripts\python.exe .\openapi_setup.py
 ```
 
-程序会隐藏输入 Client Secret，保存到当前操作系统的密钥库，然后打开腾讯官方授权页。用户确认后，一次性授权码经静态 HTTPS 页面返回本机 `127.0.0.1:49680-49689` 的专用端口，本机换取并保存 Token。中转页不接收 Client Secret、Access Token 或 Refresh Token。
+程序会打开仅限本机访问的设置窗口。第一次粘贴自己的 Client ID 和 Client Secret，点击“保存并授权”；以后只显示一个“授权腾讯文档”按钮。Client Secret 保存到当前操作系统的密钥库。用户确认后，一次性授权码经静态 HTTPS 页面返回本机 `127.0.0.1:49680-49689` 的专用端口，本机换取并保存 Token。中转页不接收 Client Secret、Access Token 或 Refresh Token。
+
+已经把 MCP 加到 AI 客户端时，也可以直接让 AI 调用 `tencent_docs_openapi_setup`。它会在用户电脑上打开同一个本机设置窗口，配置值不会作为 MCP 工具参数传给 AI。
 
 正常的 Token 过期会自动使用 Refresh Token 更新；尚未授权或需要重新授权时，AI 可直接调用 `tencent_docs_openapi_login`。高级用户仍可使用 [`examples/openapi.env.example`](examples/openapi.env.example) 的环境变量方式。
 
@@ -229,6 +234,7 @@ Windows PowerShell 可以直接使用 [`mcp-config.windows.example.json`](exampl
 正式 Open API 工具：
 
 - `tencent_docs_openapi_status`：检查配置，也可实际校验 Access Token；不返回任何凭据值。
+- `tencent_docs_openapi_setup`：打开本机设置窗口；首次填写应用信息，以后只需点击授权。
 - `tencent_docs_openapi_login`：打开腾讯官方授权页，自动接收回调、换 Token 并保存到系统密钥库。
 - `tencent_docs_openapi_logout`：删除本机用户 Token，保留用户自己的应用配置。
 - `tencent_docs_openapi_set_starred`、`tencent_docs_openapi_set_pinned`：收藏和置顶。

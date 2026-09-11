@@ -6,7 +6,15 @@
 tencent_docs_openapi_status {"validate": true}
 ```
 
-如果返回未配置，先运行 `openapi_setup.py`，隐藏输入自己应用的 Client Secret。配置保存后，AI 可调用：
+如果返回应用未配置，让 AI 调用：
+
+```text
+tencent_docs_openapi_setup {}
+```
+
+本机浏览器会显示设置窗口。第一次粘贴自己应用的 Client ID 和 Client Secret，点击“保存并授权”；以后只需点击授权。配置值不会经过 AI 对话或 MCP 参数。
+
+应用已经配置、只需要重新授权时，AI 可调用：
 
 ```text
 tencent_docs_openapi_login {"timeout": 300}

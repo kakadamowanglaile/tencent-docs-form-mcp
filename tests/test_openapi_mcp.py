@@ -11,6 +11,23 @@ from server import mcp
 
 
 class OpenAPIMCPTests(unittest.IsolatedAsyncioTestCase):
+    async def test_setup_opens_local_ui_without_returning_secrets(self) -> None:
+        result_data = {
+            "setup_ui_opened": True,
+            "local_only": True,
+            "app_configured": False,
+            "authorized": False,
+        }
+        with patch("server.open_setup_ui", return_value=result_data) as open_ui:
+            async with Client(mcp, raise_exceptions=True) as client:
+                result = await client.call_tool("tencent_docs_openapi_setup", {})
+
+        open_ui.assert_called_once_with()
+        rendered = result.content[0].text
+        self.assertTrue(json.loads(rendered)["setup_ui_opened"])
+        self.assertNotIn("client_secret", rendered)
+        self.assertNotIn("access_token", rendered)
+
     async def test_login_uses_local_oauth_profile_without_returning_secrets(self) -> None:
         result_data = {
             "authorized": True,
