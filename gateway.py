@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 
 from mcp.server.lowlevel import Server
+from mcp.server.mcpserver.exceptions import ToolError
 from mcp.server.stdio import stdio_server
 from mcp.types import (
     CallToolRequestParams,
@@ -38,7 +39,13 @@ async def _call_tool(_context, params: CallToolRequestParams) -> CallToolResult:
     arguments = params.arguments or {}
     extension_names = {tool.name for tool in await extension_mcp.list_tools()}
     if name in extension_names:
-        return await extension_mcp.call_tool(name, arguments)
+        try:
+            return await extension_mcp.call_tool(name, arguments)
+        except ToolError as exc:
+            return CallToolResult(
+                content=[TextContent(type="text", text=str(exc))],
+                is_error=True,
+            )
     try:
         if not await asyncio.to_thread(official_client.has_tool, name):
             return CallToolResult(
@@ -55,7 +62,7 @@ async def _call_tool(_context, params: CallToolRequestParams) -> CallToolResult:
 
 gateway = Server(
     "tencent-docs-complete",
-    version="0.5.0",
+    version="0.5.1",
     title="腾讯文档完整 MCP",
     description="动态代理官方 MCP，并补充未打包的正式 Open API 与收集表扩展。",
     on_list_tools=_list_tools,

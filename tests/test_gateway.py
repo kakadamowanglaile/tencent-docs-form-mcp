@@ -5,7 +5,8 @@ from unittest.mock import patch
 
 from mcp.types import Tool
 
-from gateway import _list_tools
+from gateway import _call_tool, _list_tools
+from tencent_form import TencentDocsError
 
 
 class GatewayTests(unittest.IsolatedAsyncioTestCase):
@@ -21,3 +22,18 @@ class GatewayTests(unittest.IsolatedAsyncioTestCase):
         names = {tool.name for tool in result.tools}
         self.assertIn("doc.example", names)
         self.assertIn("tencent_docs_create_and_publish_form", names)
+
+    async def test_extension_tool_error_is_returned_as_tool_result(self) -> None:
+        params = type(
+            "Params",
+            (),
+            {"name": "tencent_docs_list_versions", "arguments": {"file_id": "abc"}},
+        )()
+        with patch(
+            "server._list_versions_sync",
+            side_effect=TencentDocsError("该文件类型不支持版本历史。"),
+        ):
+            result = await _call_tool(None, params)
+
+        self.assertTrue(result.is_error)
+        self.assertIn("该文件类型不支持版本历史。", result.content[0].text)

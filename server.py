@@ -435,7 +435,7 @@ async def tencent_docs_add_shortcut(
 async def tencent_docs_list_versions(
     file_id: Annotated[str, Field(min_length=1, max_length=200, description="文件 ID。")],
 ) -> dict:
-    """实验性读取云盘上传文件版本；在线文档不支持。"""
+    """读取云盘上传文件版本；在线文档返回 supported=false。"""
     try:
         return await asyncio.to_thread(_list_versions_sync, file_id)
     except TencentDocsError as exc:

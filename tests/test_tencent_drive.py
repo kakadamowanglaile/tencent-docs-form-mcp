@@ -5,7 +5,7 @@ from http.cookiejar import CookieJar
 from unittest.mock import patch
 
 from tencent_drive import TencentDriveClient
-from tencent_form import AuthContext
+from tencent_form import AuthContext, TencentDocsError
 
 
 class DriveClientTests(unittest.TestCase):
@@ -62,3 +62,47 @@ class DriveClientTests(unittest.TestCase):
             request.call_args.args[0], "/cgi-bin/online_docs/trash_dropdoc"
         )
         self.assertEqual(request.call_args.kwargs["multipart"]["pad_id"], "abc")
+
+    def test_list_versions_reports_unsupported_online_document(self) -> None:
+        with patch.object(
+            self.client,
+            "_request_json",
+            return_value={"retcode": 320101, "msg": "unsupported ext"},
+        ):
+            result = self.client.list_versions("online-form-id")
+
+        self.assertEqual(
+            result,
+            {
+                "file_id": "online-form-id",
+                "supported": False,
+                "versions": [],
+                "reason": "腾讯云盘版本接口不支持该在线文档类型。",
+            },
+        )
+
+    def test_list_versions_keeps_other_api_errors(self) -> None:
+        with patch.object(
+            self.client,
+            "_request_json",
+            return_value={"retcode": 12345, "msg": "permission denied"},
+        ):
+            with self.assertRaises(TencentDocsError):
+                self.client.list_versions("abc")
+
+    def test_list_versions_marks_supported_upload(self) -> None:
+        with patch.object(
+            self.client,
+            "_request_json",
+            return_value={"retcode": 0, "result": [{"version": 2}]},
+        ):
+            result = self.client.list_versions("uploaded-file-id")
+
+        self.assertEqual(
+            result,
+            {
+                "file_id": "uploaded-file-id",
+                "supported": True,
+                "versions": [{"version": 2}],
+            },
+        )
