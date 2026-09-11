@@ -16,6 +16,9 @@ class MCPProtocolTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             names,
             {
+                "tencent_docs_login",
+                "tencent_docs_create_form",
+                "tencent_docs_create_and_publish_form",
                 "tencent_docs_inspect_form",
                 "tencent_docs_replace_form_questions",
                 "tencent_docs_publish_form",

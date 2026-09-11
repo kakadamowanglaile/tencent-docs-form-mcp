@@ -29,14 +29,23 @@ def parse_args() -> argparse.Namespace:
         default="firefox" if sys.platform == "win32" else "chrome",
         help="用于登录腾讯文档的浏览器。Windows 默认 Firefox，其他系统默认 Chrome。",
     )
+    parser.add_argument(
+        "--saved-login",
+        action="store_true",
+        help="使用 browser_login.py 在 Windows 加密保存的登录状态。",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     configure_console_encoding()
     args = parse_args()
-    os.environ["TENCENT_DOCS_USE_BROWSER_COOKIES"] = "1"
-    os.environ["TENCENT_DOCS_BROWSER"] = args.browser
+    if args.saved_login:
+        os.environ["TENCENT_DOCS_USE_SAVED_LOGIN"] = "1"
+        os.environ.pop("TENCENT_DOCS_USE_BROWSER_COOKIES", None)
+    else:
+        os.environ["TENCENT_DOCS_USE_BROWSER_COOKIES"] = "1"
+        os.environ["TENCENT_DOCS_BROWSER"] = args.browser
     try:
         auth = load_auth(required=True)
         data = TencentFormClient(auth).fetch_form(args.form_url, "head")["data"]
@@ -44,7 +53,7 @@ def main() -> int:
         print(f"检查失败：{exc}", file=sys.stderr)
         return 1
 
-    print(f"浏览器：{auth.source}")
+    print(f"登录来源：{auth.source}")
     print(f"已登录：{'是' if data.get('isLogin') else '否'}")
     print(f"创建者：{'是' if data.get('isOwner') else '否'}")
     print(f"管理员：{'是' if data.get('isAdmin') else '否'}")

@@ -2,8 +2,10 @@
 
 import os
 import sys
+import tempfile
 import types
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from tencent_form import (
@@ -13,6 +15,8 @@ from tencent_form import (
     compare_spec,
     load_auth,
     parse_form_url,
+    save_windows_auth,
+    TencentFormClient,
 )
 
 
@@ -76,6 +80,8 @@ class AuthTests(unittest.TestCase):
         "TENCENT_DOCS_BROWSER",
         "TENCENT_DOCS_BROWSER_COOKIE_FILE",
         "TENCENT_DOCS_CHROME_COOKIE_FILE",
+        "TENCENT_DOCS_USE_SAVED_LOGIN",
+        "TENCENT_DOCS_SAVED_AUTH_FILE",
     )
 
     def clean_environment(self) -> dict[str, str]:
@@ -120,6 +126,51 @@ class AuthTests(unittest.TestCase):
         ):
             with self.assertRaisesRegex(TencentDocsError, "不支持浏览器"):
                 load_auth(required=True)
+
+    def test_windows_saved_login_is_encrypted_and_loadable(self) -> None:
+        fake_module = types.SimpleNamespace(
+            CryptProtectData=lambda data, *_args: data[::-1],
+            CryptUnprotectData=lambda data, *_args: (None, data[::-1]),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            auth_file = Path(directory) / "auth.bin"
+            environment = self.clean_environment()
+            environment.update(
+                {
+                    "TENCENT_DOCS_USE_SAVED_LOGIN": "1",
+                    "TENCENT_DOCS_SAVED_AUTH_FILE": str(auth_file),
+                }
+            )
+            with patch.dict(os.environ, environment, clear=True), patch(
+                "tencent_form.platform.system", return_value="Windows"
+            ), patch.dict(sys.modules, {"win32crypt": fake_module}):
+                save_windows_auth("TOK=example-token; uid=example-user")
+                auth = load_auth(required=True)
+
+            self.assertTrue(auth_file.is_file())
+            self.assertNotIn(b"TOK=", auth_file.read_bytes())
+            self.assertEqual(auth.source, "saved-windows-login")
+            self.assertEqual(auth.xsrf, "example-token")
+
+
+class CreateFormTests(unittest.TestCase):
+    def test_creates_editable_form_with_form_specific_parameters(self) -> None:
+        auth = _load_raw_cookie("TOK=example-token")
+        client = TencentFormClient(auth)
+        response = {
+            "retcode": 0,
+            "doc_url": "//docs.qq.com/form/page/EXAMPLE_TOKEN",
+            "doc_id": {"domain_id": "300000000", "pad_id": "example-pad"},
+        }
+        with patch.object(client, "_request_json", return_value=response) as request:
+            created = client.create_form("测试表单")
+
+        self.assertEqual(created["form_url"], "https://docs.qq.com/form/page/EXAMPLE_TOKEN")
+        self.assertEqual(created["global_pad_id"], "300000000$example-pad")
+        params = request.call_args.kwargs["params"]
+        self.assertEqual(params["doc_type"], 2)
+        self.assertEqual(params["create_type"], 1)
+        self.assertEqual(params["folder_id"], "")
 
 
 if __name__ == "__main__":

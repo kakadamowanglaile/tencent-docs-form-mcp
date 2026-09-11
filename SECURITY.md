@@ -2,9 +2,9 @@
 
 ## 登录凭证
 
-本项目需要腾讯文档登录态才能写入和发布。默认不读取任何浏览器 Cookie；只有在用户显式设置 `TENCENT_DOCS_USE_BROWSER_COOKIES=1` 后，才会读取 `TENCENT_DOCS_BROWSER` 指定浏览器中 `docs.qq.com` 的 Cookie。
+本项目需要腾讯文档登录态才能写入和发布。Windows 推荐通过 `browser_login.py` 登录；它只在登录阶段打开浏览器，成功后立即关闭，并使用 Windows DPAPI 加密保存登录状态。其他系统可显式设置 `TENCENT_DOCS_USE_BROWSER_COOKIES=1`，读取指定浏览器中 `docs.qq.com` 的 Cookie。
 
-- Cookie 仅保留在本地 MCP 进程内存中。
+- Windows 保存的登录文件只能由当前 Windows 账号解密；解密后 Cookie 仅保留在本地 MCP 进程内存中。
 - 工具返回值和日志不包含 Cookie、`TOK` 或用户 ID。
 - 不要将 `TENCENT_DOCS_COOKIE` 写进仓库、截图或对话。
 - 只有创建者或管理员身份会被允许执行写入。

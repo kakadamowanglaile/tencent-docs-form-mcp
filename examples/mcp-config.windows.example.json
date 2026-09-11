@@ -7,8 +7,7 @@
         "C:\\ABSOLUTE\\PATH\\tencent-docs-form-mcp\\server.py"
       ],
       "env": {
-        "TENCENT_DOCS_USE_BROWSER_COOKIES": "1",
-        "TENCENT_DOCS_BROWSER": "firefox"
+        "TENCENT_DOCS_USE_SAVED_LOGIN": "1"
       },
       "timeout": 60000
     }

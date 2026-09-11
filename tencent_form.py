@@ -1,8 +1,8 @@
 """腾讯文档原生收集表客户端。
 
 这个客户端调用腾讯文档网页自身使用的内部接口，不使用浏览器自动化。
-登录态只从环境变量或用户明确指定的本机浏览器 Cookie 库读入，
-不会写入文件、日志或工具返回值。
+登录态只从环境变量、用户明确指定的浏览器 Cookie 库，或 Windows
+当前账号加密保存的登录文件读入；不会写入日志或工具返回值。
 """
 
 from __future__ import annotations
@@ -36,6 +36,7 @@ SUPPORTED_BROWSERS = {
     "firefox": "firefox",
     "vivaldi": "vivaldi",
 }
+SAVED_AUTH_ENV = "TENCENT_DOCS_USE_SAVED_LOGIN"
 
 
 class TencentDocsError(RuntimeError):
@@ -110,6 +111,63 @@ def _load_raw_cookie(raw_cookie: str) -> AuthContext:
     return AuthContext(cookie_jar=jar, xsrf=xsrf, source="environment")
 
 
+def _saved_auth_path() -> Path:
+    configured = os.environ.get("TENCENT_DOCS_SAVED_AUTH_FILE", "").strip()
+    if configured:
+        return Path(configured).expanduser().resolve()
+    local_app_data = os.environ.get("LOCALAPPDATA", "").strip()
+    if not local_app_data:
+        raise TencentDocsError("Windows 没有提供 LOCALAPPDATA，无法保存加密登录状态。")
+    return Path(local_app_data) / "TencentDocsFormMCP" / "auth.bin"
+
+
+def save_windows_auth(raw_cookie: str) -> Path:
+    """使用当前 Windows 账号的 DPAPI 加密保存登录状态。"""
+    if platform.system() != "Windows":
+        raise TencentDocsError("加密登录状态目前只用于 Windows。")
+    try:
+        import win32crypt
+    except ImportError as exc:
+        raise TencentDocsError("缺少 pywin32，无法使用 Windows 加密保存登录状态。") from exc
+    auth = _load_raw_cookie(raw_cookie)
+    normalized = "; ".join(f"{cookie.name}={cookie.value}" for cookie in auth.cookie_jar)
+    encrypted = win32crypt.CryptProtectData(
+        normalized.encode("utf-8"),
+        "TencentDocsFormMCP",
+        None,
+        None,
+        None,
+        0,
+    )
+    path = _saved_auth_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # 某些 Windows 环境会把 LocalAppData 映射到特殊卷，导致同目录的
+    # os.replace 也错误地报告“跨磁盘”。凭据损坏时重新登录即可，因此直接写入。
+    path.write_bytes(encrypted)
+    return path
+
+
+def _load_saved_windows_auth() -> AuthContext:
+    if platform.system() != "Windows":
+        raise TencentDocsError("保存的 Windows 登录状态不能在其他系统使用。")
+    path = _saved_auth_path()
+    if not path.is_file():
+        raise TencentDocsError("没有找到已保存的登录状态，请先运行 browser_login.py。")
+    try:
+        import win32crypt
+
+        raw = win32crypt.CryptUnprotectData(path.read_bytes(), None, None, None, 0)[1]
+        auth = _load_raw_cookie(raw.decode("utf-8"))
+    except TencentDocsError:
+        raise
+    except Exception as exc:
+        raise TencentDocsError(
+            "无法读取已保存的登录状态，请重新运行 browser_login.py 登录。"
+        ) from exc
+    auth.source = "saved-windows-login"
+    return auth
+
+
 def _load_browser_cookies(browser_name: str) -> AuthContext:
     try:
         import browser_cookie3
@@ -159,6 +217,8 @@ def load_auth(required: bool = False) -> AuthContext | None:
     raw_cookie = os.environ.get("TENCENT_DOCS_COOKIE", "").strip()
     if raw_cookie:
         return _load_raw_cookie(raw_cookie)
+    if os.environ.get(SAVED_AUTH_ENV, "") == "1":
+        return _load_saved_windows_auth()
     browser_opt_in = os.environ.get("TENCENT_DOCS_USE_BROWSER_COOKIES", "") == "1"
     legacy_chrome_opt_in = os.environ.get("TENCENT_DOCS_USE_CHROME_COOKIES", "") == "1"
     if browser_opt_in or legacy_chrome_opt_in:
@@ -166,8 +226,8 @@ def load_auth(required: bool = False) -> AuthContext | None:
         return _load_browser_cookies(browser_name)
     if required:
         raise TencentDocsError(
-            "写入和发布需要登录态。请设置 TENCENT_DOCS_USE_BROWSER_COOKIES=1 "
-            "并用 TENCENT_DOCS_BROWSER 选择浏览器，"
+            "写入和发布需要登录态。Windows 用户请先运行 browser_login.py，"
+            "并设置 TENCENT_DOCS_USE_SAVED_LOGIN=1；也可以显式启用浏览器 Cookie，"
             "或在本机进程环境中设置 TENCENT_DOCS_COOKIE。"
         )
     return None
@@ -254,6 +314,39 @@ class TencentFormClient:
             referer=address.url,
         )
         return self._ensure_success(result, "读取收集表")
+
+    def create_form(self, title: str = "无标题收集表") -> dict[str, str]:
+        """通过腾讯文档接口新建一份可直接编辑的空白收集表。"""
+        if self.auth is None:
+            raise TencentDocsError("新建收集表需要登录态。")
+        normalized_title = title.strip() or "无标题收集表"
+        result = self._ensure_success(
+            self._request_json(
+                "/cgi-bin/online_docs/createdoc_new",
+                params={
+                    "title": normalized_title,
+                    "create_type": 1,
+                    "doc_type": 2,
+                    "template_id": "",
+                    "folder_id": "",
+                    "hum": 1,
+                },
+            ),
+            "新建收集表",
+        )
+        raw_url = result.get("doc_url")
+        doc_id = result.get("doc_id") or {}
+        domain_id = str(doc_id.get("domain_id") or "")
+        local_pad_id = str(doc_id.get("pad_id") or "")
+        if not isinstance(raw_url, str) or not raw_url or not domain_id or not local_pad_id:
+            raise TencentDocsError("腾讯文档已响应创建请求，但没有返回完整的表单地址。")
+        form_url = urllib.parse.urljoin(BASE_URL, raw_url)
+        return {
+            "form_url": form_url,
+            "domain_id": domain_id,
+            "local_pad_id": local_pad_id,
+            "global_pad_id": f"{domain_id}${local_pad_id}",
+        }
 
     @staticmethod
     def decode_form_data(server_data: dict[str, Any]) -> dict[str, Any]:

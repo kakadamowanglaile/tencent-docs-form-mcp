@@ -10,6 +10,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from browser_login import login_with_browser
 from tencent_form import (
     TencentDocsError,
     TencentFormClient,
@@ -22,6 +23,7 @@ from tencent_form import (
 
 mcp = MCPServer("腾讯文档原生收集表")
 ResponseFormat = Literal["markdown", "json"]
+BrowserChoice = Literal["auto", "chrome", "edge", "brave", "vivaldi", "chromium"]
 
 
 class QuestionSpec(BaseModel):
@@ -89,6 +91,9 @@ def _format_result(payload: dict, response_format: ResponseFormat) -> dict | str
     if payload.get("public_url"):
         lines.append("")
         lines.append(f"公开链接：{payload['public_url']}")
+    elif payload.get("form_url"):
+        lines.append("")
+        lines.append(f"表单链接：{payload['form_url']}")
     if payload.get("verified") is not None:
         lines.append(f"公开版本验证：{'通过' if payload['verified'] else '未通过'}")
     return "\n".join(lines)
@@ -99,6 +104,14 @@ def _inspect_sync(form_url: str) -> dict:
     client = TencentFormClient(auth)
     result = client.fetch_form(form_url, "head")
     return summarize_form(result, auth.source if auth else "none")
+
+
+def _create_sync(title: str) -> dict:
+    auth = load_auth(required=True)
+    client = TencentFormClient(auth)
+    created = client.create_form(title)
+    summary = summarize_form(client.fetch_form(created["form_url"], "head"), auth.source)
+    return {**summary, **created}
 
 
 def _replace_sync(form_url: str, spec: FormSpec) -> dict:
@@ -163,6 +176,59 @@ def _build_publish_sync(form_url: str, spec: FormSpec, anonymous: bool) -> dict:
         "stages": stages,
         "notice": "匿名填写不等同于免登录填写；本次只验证了免登录查看。",
     }
+
+
+def _create_build_publish_sync(spec: FormSpec, anonymous: bool) -> dict:
+    auth = load_auth(required=True)
+    created = TencentFormClient(auth).create_form(spec.title)
+    result = _build_publish_sync(created["form_url"], spec, anonymous)
+    return {**result, **created, "stages": ["新建收集表", *result["stages"]]}
+
+
+@mcp.tool(
+    title="登录腾讯文档",
+    annotations=ToolAnnotations(
+        read_only_hint=False,
+        destructive_hint=False,
+        idempotent_hint=False,
+        open_world_hint=True,
+    ),
+)
+async def tencent_docs_login(
+    browser: Annotated[
+        BrowserChoice,
+        Field(description="auto 自动寻找可用浏览器，也可指定某一种浏览器。"),
+    ] = "auto",
+    timeout: Annotated[
+        int, Field(ge=10, le=900, description="等待用户登录的秒数。")
+    ] = 300,
+) -> dict:
+    """Windows 登录入口：弹出浏览器，登录成功后自动关窗并加密保存登录态。"""
+    try:
+        return await asyncio.to_thread(login_with_browser, browser, timeout)
+    except TencentDocsError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+@mcp.tool(
+    title="新建腾讯文档收集表",
+    annotations=ToolAnnotations(
+        read_only_hint=False,
+        destructive_hint=False,
+        idempotent_hint=False,
+        open_world_hint=True,
+    ),
+)
+async def tencent_docs_create_form(
+    title: Annotated[str, Field(min_length=1, max_length=100, description="新收集表的标题。")] = "无标题收集表",
+    response_format: Annotated[ResponseFormat, Field(description="返回 markdown 或 json。")] = "markdown",
+) -> dict | str:
+    """使用当前登录账号新建一份空白的腾讯文档原生收集表。"""
+    try:
+        result = await asyncio.to_thread(_create_sync, title)
+        return _format_result(result, response_format)
+    except TencentDocsError as exc:
+        raise ToolError(str(exc)) from exc
 
 
 @mcp.tool(
@@ -251,6 +317,31 @@ async def tencent_docs_build_and_publish_form(
     """
     try:
         result = await asyncio.to_thread(_build_publish_sync, form_url, spec, anonymous)
+        return _format_result(result, response_format)
+    except TencentDocsError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+@mcp.tool(
+    title="新建并发布腾讯文档收集表",
+    annotations=ToolAnnotations(
+        read_only_hint=False,
+        destructive_hint=False,
+        idempotent_hint=False,
+        open_world_hint=True,
+    ),
+)
+async def tencent_docs_create_and_publish_form(
+    spec: FormSpec,
+    anonymous: Annotated[
+        bool,
+        Field(description="是否隐藏填写者身份；这不等同于免登录填写。"),
+    ] = False,
+    response_format: Annotated[ResponseFormat, Field(description="返回 markdown 或 json。")] = "markdown",
+) -> dict | str:
+    """新建收集表、写入题目、发布，并以未登录请求验证公开版本。"""
+    try:
+        result = await asyncio.to_thread(_create_build_publish_sync, spec, anonymous)
         return _format_result(result, response_format)
     except TencentDocsError as exc:
         raise ToolError(str(exc)) from exc

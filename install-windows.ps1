@@ -9,10 +9,10 @@ if (Get-Command py -ErrorAction SilentlyContinue) {
 } elseif (Get-Command python -ErrorAction SilentlyContinue) {
     & python -m venv $VenvPath
 } else {
-    throw "未找到 Python。请先安装 Python 3.10 或更高版本。"
+    throw "Python was not found. Install Python 3.10 or newer first."
 }
 
 & $PythonPath -m pip install --upgrade pip
 & $PythonPath -m pip install -r (Join-Path $ProjectRoot "requirements.txt")
 
-Write-Host "安装完成。Python: $PythonPath"
+Write-Host "Installation completed. Python: $PythonPath"

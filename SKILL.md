@@ -1,6 +1,6 @@
 ---
 name: tencent-docs-native-form
-description: 在腾讯文档原生收集表中读取、替换问答题和选择题、设置匿名、发布并验证公开预览。当用户要求在腾讯文档做收集表、问卷、报名表或反馈表，且不使用浏览器自动化时使用。
+description: 通过 API 新建腾讯文档原生收集表，读取或替换问答题和选择题，设置匿名、发布并验证公开预览。当用户要求在腾讯文档做收集表、问卷、报名表或反馈表，且不使用浏览器自动化时使用。
 ---
 
 # 腾讯文档原生收集表
@@ -9,11 +9,14 @@ description: 在腾讯文档原生收集表中读取、替换问答题和选择�
 
 ## 执行顺序
 
-1. 先调用 `tencent_docs_inspect_form`，确认链接、发布状态和当前账号权限。
-2. 用户明确要求完整重建并发布时，调用 `tencent_docs_build_and_publish_form`。
-3. 只改题目不发布时，调用 `tencent_docs_replace_form_questions`。
-4. 只发布已经完成的草稿时，调用 `tencent_docs_publish_form`。
-5. 对写入结果必须看工具返回的 `verified`；不得只根据 HTTP 成功宣称已完成。
+1. Windows 上如果写入工具提示没有登录状态，调用 `tencent_docs_login`；等待用户登录，成功后继续原任务。
+2. 用户没有提供现成表单、要求从零创建并发布时，调用 `tencent_docs_create_and_publish_form`。
+3. 用户只要求新建空白表单时，调用 `tencent_docs_create_form`。
+4. 用户提供了现成表单时，先调用 `tencent_docs_inspect_form`，确认链接、发布状态和当前账号权限。
+5. 用户明确要求完整重建并发布现成表单时，调用 `tencent_docs_build_and_publish_form`。
+6. 只改题目不发布时，调用 `tencent_docs_replace_form_questions`。
+7. 只发布已经完成的草稿时，调用 `tencent_docs_publish_form`。
+8. 对写入结果必须看工具返回的 `verified`；不得只根据 HTTP 成功宣称已完成。
 
 ## 题型
 
@@ -24,9 +27,11 @@ description: 在腾讯文档原生收集表中读取、替换问答题和选择�
 
 ## 凭证与权限
 
-- 工具默认不读浏览器 Cookie。
+- Windows 首次使用时运行 `browser_login.py`；它自动选择 Chrome、Edge、Brave、Vivaldi 或 Chromium，登录成功后自动关窗。
+- Windows MCP 设置 `TENCENT_DOCS_USE_SAVED_LOGIN=1`，后续直接用 API，不再操作浏览器。
+- 工具默认不扫描浏览器 Cookie。
 - 仅当 MCP 环境显式设置 `TENCENT_DOCS_USE_BROWSER_COOKIES=1` 时，读取 `TENCENT_DOCS_BROWSER` 指定浏览器中 `docs.qq.com` 的 Cookie。
-- macOS 已实测 Chrome；Windows 建议优先用 Firefox，新版 Chrome/Edge 可能因系统加密策略无法读取。
+- 不存在 Chrome 时，Windows 登录助手会自动改用系统自带的 Edge。
 - 也可用 `TENCENT_DOCS_COOKIE` 传入 Cookie header，但只能放在本场进程环境，不得让用户在对话里粘贴。
 - 仅创建者或管理员能写入和发布。
 - 任何返回内容都不得包含 Cookie、`TOK`、用户 ID 或其他会话凭证。

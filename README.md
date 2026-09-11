@@ -16,7 +16,8 @@
 | macOS + Chrome 登录、写入、发布 | 已实际验证 |
 | 不带 Cookie 读取公开表单 | 已实际验证 |
 | Windows 安装、导入、MCP 工具协议 | 由 GitHub Actions 验证 |
-| Windows 读取腾讯文档真实登录态 | 尚未在 Windows 真机验证 |
+| Windows 自动打开登录、加密保存登录态、自动关窗 | 已在 Windows 11 真机验证 |
+| Windows 通过登录态新建、写入、发布、公开回读 | 已在 Windows 11 真机验证 |
 | 访客免登录提交 | 不保证；腾讯文档权限策略可能要求登录 |
 
 ## 安装
@@ -42,7 +43,13 @@ cd tencent-docs-form-mcp
 powershell -ExecutionPolicy Bypass -File .\install-windows.ps1
 ```
 
-Windows 建议使用 Firefox 登录腾讯文档。新版 Chrome/Edge 的 Cookie 可能受 Windows 加密策略限制，第三方进程无法解密。
+安装完成后运行一次登录助手：
+
+```powershell
+.\.venv\Scripts\python.exe .\browser_login.py
+```
+
+它会自动寻找 Chrome、Edge、Brave、Vivaldi 或 Chromium，打开腾讯文档登录页。你登录成功后窗口会立即自动关闭，并由 Windows 使用当前系统账号加密保存登录状态。没有 Chrome 时会自动使用 Edge，不需要你预先新建表单。
 
 ## 检查登录态
 
@@ -56,12 +63,13 @@ macOS：
   --browser chrome
 ```
 
-Windows：
+Windows 登录后不必提供已有表单；可以让 MCP 直接新建。若要检查某个已有表单，可运行：
 
 ```powershell
+$env:TENCENT_DOCS_USE_SAVED_LOGIN = "1"
 .\.venv\Scripts\python.exe .\auth_check.py `
   --form-url "https://docs.qq.com/form/page/你的表单TOKEN" `
-  --browser firefox
+  --saved-login
 ```
 
 该命令只显示登录和编辑权限状态，不输出 Cookie。
@@ -100,8 +108,7 @@ Windows 示例：
         "C:\\你的路径\\tencent-docs-form-mcp\\server.py"
       ],
       "env": {
-        "TENCENT_DOCS_USE_BROWSER_COOKIES": "1",
-        "TENCENT_DOCS_BROWSER": "firefox"
+        "TENCENT_DOCS_USE_SAVED_LOGIN": "1"
       }
     }
   }
@@ -114,23 +121,34 @@ Windows 示例：
 
 ## MCP 工具
 
+- `tencent_docs_login`：Windows 上自动弹出可用浏览器，登录成功后立即关窗并加密保存登录状态。
 - `tencent_docs_inspect_form`：读取题目、发布状态和当前账号权限，不修改内容。
+- `tencent_docs_create_form`：使用当前登录账号新建一份空白收集表。
 - `tencent_docs_replace_form_questions`：完整替换题目但不发布。
 - `tencent_docs_publish_form`：发布现有草稿，并检查公开版本。
 - `tencent_docs_build_and_publish_form`：替换题目、设置匿名选项、发布并检查公开版本。
+- `tencent_docs_create_and_publish_form`：新建收集表、写入题目、发布并检查公开版本，不需要预先提供表单链接。
 
 写入工具会完整替换现有题目。使用前建议先复制一份表单进行测试。
 
 ## 登录方式
 
-MCP 默认不会扫描浏览器数据。只有配置以下环境变量后才会读取 `docs.qq.com` 的 Cookie：
+Windows 推荐使用 `browser_login.py`。浏览器只负责让你本人登录；登录完成后会自动关闭，后续创建、编辑、发布全部直接调用接口，不会操控浏览器。登录状态保存在 `%LOCALAPPDATA%\TencentDocsFormMCP\auth.bin`，内容受 Windows 当前账号加密保护。
+
+Windows MCP 配置：
+
+```text
+TENCENT_DOCS_USE_SAVED_LOGIN=1
+```
+
+其他系统仍可显式选择浏览器 Cookie：
 
 ```text
 TENCENT_DOCS_USE_BROWSER_COOKIES=1
 TENCENT_DOCS_BROWSER=chrome
 ```
 
-`TENCENT_DOCS_BROWSER` 支持 `brave`、`chrome`、`chromium`、`edge`、`firefox`、`vivaldi`。
+`TENCENT_DOCS_BROWSER` 支持 `brave`、`chrome`、`chromium`、`edge`、`firefox`、`vivaldi`。这条旧方式读取浏览器自身的 Cookie；Windows 新登录助手不会受新版 Chrome/Edge Cookie 加密方式影响。
 
 也支持通过进程环境变量 `TENCENT_DOCS_COOKIE` 提供 Cookie header，但不要把 Cookie 写进仓库、配置示例或聊天消息。
 
@@ -145,11 +163,11 @@ python -m pip install -r requirements.txt
 python -m unittest discover -s tests -v
 ```
 
-GitHub Actions 会在 Ubuntu、macOS、Windows，以及 Python 3.10 和 3.13 上执行测试。跨平台测试不包含真实腾讯账号，Windows 的真实浏览器登录仍需要用户本机检查。
+GitHub Actions 会在 Ubuntu、macOS、Windows，以及 Python 3.10 和 3.13 上执行测试。自动测试不包含真实腾讯账号；真实账号的端到端流程已另外在 Windows 11 真机验证。
 
 ## 安全说明
 
-- Cookie 只保留在 MCP 进程内存中，不会写入项目文件或工具返回值。
+- Windows 登录助手将 Cookie 写入当前账号才能解密的系统加密文件，不会写入项目或工具返回值。
 - 仅表单创建者或管理员可以写入和发布。
 - 项目不会绕过腾讯文档登录、访问权限或提交限制。
 - 安全问题请参阅 [`SECURITY.md`](SECURITY.md)。
