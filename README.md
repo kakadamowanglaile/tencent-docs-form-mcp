@@ -1,18 +1,16 @@
-# 腾讯文档完整 MCP
+# 腾讯文档扩展 MCP
 
 [![跨平台测试](https://github.com/kakadamowanglaile/tencent-docs-form-mcp/actions/workflows/test.yml/badge.svg)](https://github.com/kakadamowanglaile/tencent-docs-form-mcp/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-让 Codex、Claude、WorkBuddy、Cursor 等支持本地 `stdio MCP` 的 AI 客户端，通过同一个服务调用腾讯文档。后续文档操作不依赖浏览器点击自动化。
+让 Codex、Claude、WorkBuddy、Cursor 等支持本地 `stdio MCP` 的 AI 客户端，使用腾讯官方 MCP 尚未提供的功能。本项目不再代理或重复腾讯官方 MCP。
 
-- 动态代理腾讯文档官方 MCP 的实时 `tools/list`；2026-09-11 实测为 224 个官方工具。
-- 覆盖文档、表格、幻灯片、智能表、智能文档、流程图、OCR、导入导出、权限和文件管理。
-- 预置 25 个正式 Open API 相关工具：21 项官方 MCP 未完整打包的能力，加上设置窗口、授权登录、退出和状态检查；没有用户自己的开放平台授权时不可调用。
-- 保留公开 API 仍未提供的收集表题目编辑等网页扩展能力。
-- 当前统一服务暴露 264 个不重名工具；官方 MCP 后续新增工具时，总数会动态变化。
-- 官方新增工具会在下次启动或缓存刷新后自动出现，不需要本项目重新发版。
+- 收集表题目读取、编辑、发布和公开回读验证。
+- 收藏、共享、回收站、恢复、快捷方式、置顶等官方 MCP 未打包的文件管理能力。
+- 21 项官方 MCP 未提供或只提供较窄版本的正式 Open API 能力，另有 4 个本机授权管理工具。
+- 当前共 38 个工具；不包含官方 MCP 已有的 224 个工具。
 
-> 这是社区项目，不是腾讯官方产品。项目会分别标记官方 MCP、正式 Open API 和网页内部接口。只有前两类属于腾讯公开能力；网页内部接口可能随腾讯改版失效。
+> 这是社区项目，不是腾讯官方产品。项目同时包含正式 Open API 和网页内部接口；后者可能随腾讯改版失效。已安装腾讯官方 MCP 的用户可以与本项目并行使用。
 
 ## 支持的 AI 客户端
 
@@ -34,15 +32,12 @@ AI 产品本身如果不支持 MCP，无法直接加载本项目。Claude.ai、C
 | Windows 安装、导入、MCP 工具协议 | 由 GitHub Actions 验证 |
 | Windows 自动打开登录、加密保存登录态、自动关窗 | 已在 Windows 11 真机验证 |
 | Windows 通过登录态新建、写入、发布、公开回读 | 已在 Windows 11 真机验证 |
-| macOS 自动获取官方 Token、动态读取 224 个工具 | 已实际验证 |
-| 官方工具经本地统一 MCP 转发 | 已实际调用验证 |
 | 正式 Open API 25 个相关工具的协议、参数、端点和错误处理 | 已通过模拟官方响应测试 |
 | 本机授权窗口打开、字段隐藏与安全限制 | 已实际浏览器检查并通过自动测试 |
 | 标准 stdio 子进程启动、工具发现和调用 | 已测试；用于 Codex、Claude Code 等客户端 |
 | 正式 Open API 调用真实腾讯账号 | 等待开放平台应用 OAuth2 凭据，尚未验证 |
-| 最近/根目录/收藏/共享/回收站列表 | 已实际验证 |
+| 收藏/共享/回收站列表 | 已实际验证 |
 | 收藏、回收站恢复、快捷方式、置顶 | 已用临时文件验证 |
-| Windows 保存的登录态自动连接官方 MCP | 已实现，尚未在 Windows 真机验证 |
 | 永久删除、清空回收站 | 已实现且要求精确确认词；未做真实不可恢复测试 |
 | 访客免登录提交 | 不保证；腾讯文档权限策略可能要求登录 |
 
@@ -77,11 +72,9 @@ powershell -ExecutionPolicy Bypass -File .\install-windows.ps1
 
 它会自动寻找 Chrome、Edge、Brave、Vivaldi 或 Chromium，打开腾讯文档登录页。你登录成功后窗口会立即自动关闭，并由 Windows 使用当前系统账号加密保存登录状态。没有 Chrome 时会自动使用 Edge，不需要你预先新建表单。
 
-如果不想让本地 MCP 从登录态获取官方 Token，也可以在 [腾讯文档 MCP Token 页](https://docs.qq.com/open/auth/mcp.html) 生成 Token，然后只在本机 MCP 环境中设置 `TENCENT_DOCS_MCP_TOKEN`。不要把 Token 提交到 GitHub。
-
 ## 正式 Open API 一键授权
 
-官方 MCP Token 与正式 Open API OAuth2 Token 是两套凭据。每位用户使用自己在[腾讯文档开放平台](https://docs.qq.com/open/)创建并审核的应用，不共享仓库作者的账号或密钥。
+正式 Open API OAuth2 与腾讯官方 MCP 的授权无关。每位用户使用自己在[腾讯文档开放平台](https://docs.qq.com/open/)创建并审核的应用，不共享仓库作者的账号或密钥。
 
 首次使用：
 
@@ -148,7 +141,7 @@ macOS 示例：
 ```json
 {
   "mcpServers": {
-    "tencent-docs-complete": {
+    "tencent-docs-extensions": {
       "command": "/你的路径/tencent-docs-form-mcp/.venv/bin/python",
       "args": [
         "/你的路径/tencent-docs-form-mcp/gateway.py"
@@ -167,7 +160,7 @@ Windows 示例：
 ```json
 {
   "mcpServers": {
-    "tencent-docs-complete": {
+    "tencent-docs-extensions": {
       "command": "C:\\你的路径\\tencent-docs-form-mcp\\.venv\\Scripts\\python.exe",
       "args": [
         "C:\\你的路径\\tencent-docs-form-mcp\\gateway.py"
@@ -180,7 +173,7 @@ Windows 示例：
 }
 ```
 
-可复制的 JSON 和 TOML 模板位于 [`examples`](examples) 目录。不要整份覆盖客户端现有配置，只增加 `tencent-docs-complete` 这一项。推荐用 `openapi_setup.py` 把凭据保存到系统密钥库；环境变量模板仅供高级用户和 CI 使用。
+可复制的 JSON 和 TOML 模板位于 [`examples`](examples) 目录。不要整份覆盖客户端现有配置，只增加 `tencent-docs-extensions` 这一项。推荐用 `openapi_setup.py` 把凭据保存到系统密钥库；环境变量模板仅供高级用户和 CI 使用。
 
 ### Codex
 
@@ -194,7 +187,7 @@ Windows 示例：
 Claude Code 可以把同样的 stdio 配置加入用户级 MCP：
 
 ```bash
-claude mcp add-json --scope user tencent-docs-complete '{"type":"stdio","command":"/ABSOLUTE/PATH/tencent-docs-form-mcp/.venv/bin/python","args":["/ABSOLUTE/PATH/tencent-docs-form-mcp/gateway.py"],"env":{"TENCENT_DOCS_USE_BROWSER_COOKIES":"1","TENCENT_DOCS_BROWSER":"chrome"}}'
+claude mcp add-json --scope user tencent-docs-extensions '{"type":"stdio","command":"/ABSOLUTE/PATH/tencent-docs-form-mcp/.venv/bin/python","args":["/ABSOLUTE/PATH/tencent-docs-form-mcp/gateway.py"],"env":{"TENCENT_DOCS_USE_BROWSER_COOKIES":"1","TENCENT_DOCS_BROWSER":"chrome"}}'
 ```
 
 Windows PowerShell 可以直接使用 [`mcp-config.windows.example.json`](examples/mcp-config.windows.example.json) 中的服务器对象，通过 `claude mcp add-json` 添加。Claude Desktop 可在本地 MCP 或扩展开发配置中使用同一对象。
@@ -203,25 +196,23 @@ Windows PowerShell 可以直接使用 [`mcp-config.windows.example.json`](exampl
 
 使用 [`mcp-config.macos.example.json`](examples/mcp-config.macos.example.json) 或 [`mcp-config.windows.example.json`](examples/mcp-config.windows.example.json)。保存并重启客户端后，可以这样说：
 
-0.1.x 用户升级时，需要把 MCP 配置中的启动文件从 `server.py` 改为 `gateway.py`；`server.py` 仅保留本项目扩展工具。
+`gateway.py` 仅为兼容旧配置的启动入口，不会连接或代理腾讯官方 MCP。
 
 > 检查这个腾讯文档收集表，然后把题目改成姓名、手机号、报名项目三个问题，确认后发布。表单链接是……
 
 ## MCP 工具
 
-官方工具不在项目中写死。`gateway.py` 会读取官方 `tools/list` 的名称、说明和参数 Schema，并原样转发调用。实际工具数以 `tencent_docs_official_status` 为准。
+本项目只暴露腾讯官方 MCP 未提供的扩展工具。普通文档、表格、幻灯片、OCR、最近文件、文件夹列表和空白收集表创建等能力，请直接安装腾讯官方 MCP。
 
 本项目的扩展工具：
 
 - `tencent_docs_login`：Windows 上自动弹出可用浏览器，登录成功后立即关窗并加密保存登录状态。
-- `tencent_docs_official_status`：检查官方 MCP 授权和当前工具数，不返回 Token。
 - `tencent_docs_inspect_form`：读取题目、发布状态和当前账号权限，不修改内容。
-- `tencent_docs_create_form`：使用当前登录账号新建一份空白收集表。
 - `tencent_docs_replace_form_questions`：完整替换题目但不发布。
 - `tencent_docs_publish_form`：发布现有草稿，并检查公开版本。
 - `tencent_docs_build_and_publish_form`：替换题目、设置匿名选项、发布并检查公开版本。
 - `tencent_docs_create_and_publish_form`：新建收集表、写入题目、发布并检查公开版本，不需要预先提供表单链接。
-- `tencent_docs_list_files`：读取最近、收藏、与我共享、回收站或文件夹列表。
+- `tencent_docs_list_files`：读取收藏、与我共享或回收站列表。
 - `tencent_docs_set_starred`：收藏或取消收藏。
 - `tencent_docs_restore_file`：从回收站恢复文件。
 - `tencent_docs_add_shortcut`：在指定文件夹创建文件快捷方式。
@@ -293,7 +284,6 @@ GitHub Actions 会在 Ubuntu、macOS、Windows，以及 Python 3.10 和 3.13 上
 ## 安全说明
 
 - Windows 登录助手将 Cookie 写入当前账号才能解密的系统加密文件，不会写入项目或工具返回值。
-- 官方 MCP Token 只保存在 MCP 进程内存或用户自己的本机环境中。
 - 仅表单创建者或管理员可以写入和发布。
 - 项目不会绕过腾讯文档登录、访问权限或提交限制。
 - 安全问题请参阅 [`SECURITY.md`](SECURITY.md)。

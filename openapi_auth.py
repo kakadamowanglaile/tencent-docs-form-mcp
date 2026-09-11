@@ -29,6 +29,7 @@ TOKEN_URL = "https://docs.qq.com/oauth/v2/token"
 DEFAULT_REDIRECT_URI = (
     "https://kakadamowanglaile.github.io/tencent-docs-form-mcp/"
 )
+# 保留旧服务名，避免升级后找不到用户已保存的本机凭据。
 KEYRING_SERVICE = "tencent-docs-complete-mcp"
 KEYRING_METADATA_ACCOUNT = "openapi-metadata"
 KEYRING_CLIENT_SECRET_ACCOUNT = "openapi-client-secret"

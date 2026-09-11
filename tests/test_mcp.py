@@ -17,7 +17,6 @@ class MCPProtocolTests(unittest.IsolatedAsyncioTestCase):
             names,
             {
                 "tencent_docs_login",
-                "tencent_docs_official_status",
                 "tencent_docs_list_files",
                 "tencent_docs_set_starred",
                 "tencent_docs_restore_file",
@@ -25,7 +24,6 @@ class MCPProtocolTests(unittest.IsolatedAsyncioTestCase):
                 "tencent_docs_set_pinned",
                 "tencent_docs_permanently_delete_trash_item",
                 "tencent_docs_clear_trash",
-                "tencent_docs_create_form",
                 "tencent_docs_create_and_publish_form",
                 "tencent_docs_inspect_form",
                 "tencent_docs_replace_form_questions",
@@ -58,3 +56,12 @@ class MCPProtocolTests(unittest.IsolatedAsyncioTestCase):
                 "tencent_docs_openapi_batch_insert_sheet_images",
             },
         )
+        self.assertEqual(len(listed.tools), 38)
+        file_list_tool = next(
+            tool for tool in listed.tools if tool.name == "tencent_docs_list_files"
+        )
+        self.assertEqual(
+            file_list_tool.input_schema["properties"]["source"]["enum"],
+            ["starred", "shared", "trash"],
+        )
+        self.assertNotIn("parent_id", file_list_tool.input_schema["properties"])

@@ -1,9 +1,9 @@
-[mcp_servers.tencent_docs_complete]
+[mcp_servers.tencent_docs_extensions]
 command = "/ABSOLUTE/PATH/tencent-docs-form-mcp/.venv/bin/python"
 args = ["/ABSOLUTE/PATH/tencent-docs-form-mcp/gateway.py"]
 enabled = true
 
-[mcp_servers.tencent_docs_complete.env]
+[mcp_servers.tencent_docs_extensions.env]
 TENCENT_DOCS_USE_BROWSER_COOKIES = "1"
 TENCENT_DOCS_BROWSER = "chrome"
 TENCENT_DOCS_OPENAPI_CLIENT_ID = ""

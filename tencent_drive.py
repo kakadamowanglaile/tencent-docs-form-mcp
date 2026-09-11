@@ -10,13 +10,11 @@ from typing import Any, Literal
 
 from tencent_form import BASE_URL, TencentDocsError, TencentFormClient
 
-FileListSource = Literal["recent", "starred", "shared", "trash", "folder"]
+FileListSource = Literal["starred", "shared", "trash"]
 LIST_ENDPOINTS: dict[FileListSource, str] = {
-    "recent": "/api/list/recent",
     "starred": "/api/list/star",
     "shared": "/api/list/shared",
     "trash": "/api/list/trash",
-    "folder": "/api/list/file",
 }
 PERSONAL_DOMAIN_ID = "300000000"
 
@@ -47,7 +45,7 @@ def _summary(item: dict[str, Any]) -> dict[str, Any]:
 
 
 class TencentDriveClient(TencentFormClient):
-    """文件列表、收藏、恢复、快捷方式和版本查看。"""
+    """收藏/共享/回收站列表、收藏、恢复和快捷方式。"""
 
     def _require_auth(self) -> None:
         if self.auth is None:
@@ -57,15 +55,12 @@ class TencentDriveClient(TencentFormClient):
         self,
         source: FileListSource,
         *,
-        parent_id: str = "/",
         offset: int = 0,
         count: int = 50,
     ) -> dict[str, Any]:
         self._require_auth()
         path = LIST_ENDPOINTS[source]
         params: dict[str, Any] = {"offset": offset, "count": count}
-        if source == "folder":
-            params["parent_id"] = parent_id
         result = self._ensure_success(
             self._request_json(path, params=params, referer=BASE_URL + "/desktop"),
             "读取文件列表",

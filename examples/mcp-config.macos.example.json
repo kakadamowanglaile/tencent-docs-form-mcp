@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "tencent-docs-complete": {
+    "tencent-docs-extensions": {
       "type": "stdio",
       "command": "/ABSOLUTE/PATH/tencent-docs-form-mcp/.venv/bin/python",
       "args": [

@@ -1,29 +1,28 @@
 ---
-name: tencent-docs-complete
-description: 通过统一 MCP 使用腾讯文档官方 MCP、官方未打包的正式 Open API，以及公开 API 仍未提供的收集表扩展。当用户要求不使用浏览器点击自动化操作腾讯文档时使用。
+name: tencent-docs-extensions
+description: 通过 MCP 使用腾讯文档官方 MCP 未打包的正式 Open API 和收集表扩展。当用户要求不使用浏览器点击自动化操作腾讯文档时使用。
 ---
 
-# 腾讯文档完整 MCP
+# 腾讯文档扩展 MCP
 
-工具优先级：官方 MCP → `tencent_docs_openapi_*` 正式 Open API → 必要时使用网页内部接口扩展。不要把网页内部接口说成腾讯公开 API。
+本 MCP 只提供腾讯官方 MCP 没有的功能。普通文档、表格、幻灯片、OCR、空白收集表创建等官方已有功能应调用官方 MCP。不要把网页内部接口说成腾讯公开 API。
 
 ## 执行顺序
 
 1. Windows 上如果写入工具提示没有登录状态，调用 `tencent_docs_login`；等待用户登录，成功后继续原任务。
 2. 用户没有提供现成表单、要求从零创建并发布时，调用 `tencent_docs_create_and_publish_form`。
-3. 用户只要求新建空白表单时，调用 `tencent_docs_create_form`。
+3. 用户只要求新建空白收集表时，使用腾讯官方 MCP；本 MCP 不重复该功能。
 4. 用户提供了现成表单时，先调用 `tencent_docs_inspect_form`，确认链接、发布状态和当前账号权限。
 5. 用户明确要求完整重建并发布现成表单时，调用 `tencent_docs_build_and_publish_form`。
 6. 只改题目不发布时，调用 `tencent_docs_replace_form_questions`。
 7. 只发布已经完成的草稿时，调用 `tencent_docs_publish_form`。
 8. 对写入结果必须看工具返回的 `verified`；不得只根据 HTTP 成功宣称已完成。
-9. 官方工具按其实时说明和 Schema 调用，不在 Skill 中假设参数。
-10. 永久删除和清空回收站只能在用户当前请求明确要求时执行，不得根据“整理”或“清理”自行推断。
-11. 收藏、置顶、恢复和快捷方式优先调用同名的 `tencent_docs_openapi_*` 工具；只有 Open API 未配置且用户接受网页接口限制时，才调用旧扩展工具。
-12. 发布、暂停或设置收集截止时间时，优先调用 `tencent_docs_openapi_set_form_release`。
-13. 转让所有权必须确认目标 Open ID，并由用户明确授权后填写工具要求的确认词。
-14. `tencent_docs_openapi_status` 显示应用未配置时，调用 `tencent_docs_openapi_setup` 打开本机设置窗口；应用已配置但未授权时，调用 `tencent_docs_openapi_login`，并等待用户在腾讯官方页面确认。
-15. 完整读取分享策略时使用 `tencent_docs_openapi_get_file_permission`；读取文件夹操作能力时使用 `tencent_docs_openapi_get_folder_permission`。
+9. 永久删除和清空回收站只能在用户当前请求明确要求时执行，不得根据“整理”或“清理”自行推断。
+10. 收藏、置顶、恢复和快捷方式优先调用同名的 `tencent_docs_openapi_*` 工具；只有 Open API 未配置且用户接受网页接口限制时，才调用旧扩展工具。
+11. 发布、暂停或设置收集截止时间时，优先调用 `tencent_docs_openapi_set_form_release`。
+12. 转让所有权必须确认目标 Open ID，并由用户明确授权后填写工具要求的确认词。
+13. `tencent_docs_openapi_status` 显示应用未配置时，调用 `tencent_docs_openapi_setup` 打开本机设置窗口；应用已配置但未授权时，调用 `tencent_docs_openapi_login`，并等待用户在腾讯官方页面确认。
+14. 完整读取分享策略时使用 `tencent_docs_openapi_get_file_permission`；读取文件夹操作能力时使用 `tencent_docs_openapi_get_folder_permission`。
 
 ## 题型
 
@@ -42,7 +41,6 @@ description: 通过统一 MCP 使用腾讯文档官方 MCP、官方未打包的�
 - 也可用 `TENCENT_DOCS_COOKIE` 传入 Cookie header，但只能放在本场进程环境，不得让用户在对话里粘贴。
 - 仅创建者或管理员能写入和发布。
 - 任何返回内容都不得包含 Cookie、`TOK`、用户 ID 或其他会话凭证。
-- 官方 MCP Token 不得写入项目、回答、日志或测试快照。
 - 正式 Open API 使用单独的 `Client-Id`、`Open-Id`、`Access-Token`；这些值以及 Client Secret、Refresh Token 不得写入回答、日志或测试快照。
 - 先调用 `tencent_docs_openapi_status` 检查配置；需要验证有效性时使用 `validate=true`。
 - 每位用户使用自己的开放平台应用。Client Secret 只能在 `tencent_docs_openapi_setup` 打开的本机页面，或 `openapi_setup.py --terminal` 的隐藏输入中配置；不得要求用户在 AI 对话里粘贴。

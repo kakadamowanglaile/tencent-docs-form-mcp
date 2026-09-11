@@ -12,7 +12,6 @@ from mcp.types import ToolAnnotations
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from browser_login import login_with_browser
-from official_mcp import OFFICIAL_MCP_URL, official_client
 from openapi_auth import authorize_interactively, clear_openapi_tokens
 from openapi_client import load_openapi_credentials, openapi_client
 from openapi_setup_ui import open_setup_ui
@@ -26,7 +25,7 @@ from tencent_form import (
     summarize_form,
 )
 
-mcp = MCPServer("tencent_docs_mcp")
+mcp = MCPServer("tencent_docs_extensions_mcp")
 ResponseFormat = Literal["markdown", "json"]
 BrowserChoice = Literal["auto", "chrome", "edge", "brave", "vivaldi", "chromium"]
 PermissionPolicy = Literal["private", "members", "publicRead", "publicWrite"]
@@ -159,14 +158,6 @@ def _inspect_sync(form_url: str) -> dict:
     return summarize_form(result, auth.source if auth else "none")
 
 
-def _create_sync(title: str) -> dict:
-    auth = load_auth(required=True)
-    client = TencentFormClient(auth)
-    created = client.create_form(title)
-    summary = summarize_form(client.fetch_form(created["form_url"], "head"), auth.source)
-    return {**summary, **created}
-
-
 def _replace_sync(form_url: str, spec: FormSpec) -> dict:
     auth = load_auth(required=True)
     client = TencentFormClient(auth)
@@ -238,24 +229,11 @@ def _create_build_publish_sync(spec: FormSpec, anonymous: bool) -> dict:
     return {**result, **created, "stages": ["新建收集表", *result["stages"]]}
 
 
-def _official_status_sync(refresh: bool) -> dict:
-    tools = official_client.list_tools(force_refresh=refresh)
-    return {
-        "connected": True,
-        "endpoint": OFFICIAL_MCP_URL,
-        "official_tool_count": len(tools),
-        "token_source": official_client.token_source,
-        "tool_schema_source": "live-tools-list",
-    }
-
-
 def _list_files_sync(
-    source: FileListSource, parent_id: str, offset: int, count: int
+    source: FileListSource, offset: int, count: int
 ) -> dict:
     auth = load_auth(required=True)
-    return TencentDriveClient(auth).list_files(
-        source, parent_id=parent_id, offset=offset, count=count
-    )
+    return TencentDriveClient(auth).list_files(source, offset=offset, count=count)
 
 
 def _set_starred_sync(file_id: str, starred: bool) -> dict:
@@ -318,41 +296,20 @@ async def tencent_docs_login(
 
 
 @mcp.tool(
-    title="检查腾讯文档官方 MCP",
-    annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True),
-)
-async def tencent_docs_official_status(
-    refresh: Annotated[
-        bool,
-        Field(description="是否忽略 10 分钟工具清单缓存，重新读取官方 tools/list。"),
-    ] = False,
-) -> dict:
-    """检查官方 MCP 授权和实时工具数，不返回 Token。"""
-    try:
-        return await asyncio.to_thread(_official_status_sync, refresh)
-    except TencentDocsError as exc:
-        raise ToolError(str(exc)) from exc
-
-
-@mcp.tool(
-    title="读取腾讯文档文件列表",
+    title="读取官方 MCP 未提供的文件列表",
     annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True),
 )
 async def tencent_docs_list_files(
     source: Annotated[
         FileListSource,
-        Field(description="列表来源：recent、starred、shared、trash 或 folder。"),
-    ] = "recent",
-    parent_id: Annotated[
-        str,
-        Field(description="source=folder 时的文件夹 ID；根目录使用 /。"),
-    ] = "/",
+        Field(description="列表来源：starred、shared 或 trash。"),
+    ] = "starred",
     offset: Annotated[int, Field(ge=0, le=100000)] = 0,
     count: Annotated[int, Field(ge=1, le=100)] = 50,
 ) -> dict:
-    """读取最近、收藏、与我共享、回收站或指定文件夹。"""
+    """读取收藏、与我共享或回收站；不重复官方 MCP 已有的最近和文件夹列表。"""
     try:
-        return await asyncio.to_thread(_list_files_sync, source, parent_id, offset, count)
+        return await asyncio.to_thread(_list_files_sync, source, offset, count)
     except TencentDocsError as exc:
         raise ToolError(str(exc)) from exc
 
@@ -501,27 +458,6 @@ async def tencent_docs_clear_trash(
         )
     try:
         return await asyncio.to_thread(_clear_trash_sync)
-    except TencentDocsError as exc:
-        raise ToolError(str(exc)) from exc
-
-
-@mcp.tool(
-    title="新建腾讯文档收集表",
-    annotations=ToolAnnotations(
-        read_only_hint=False,
-        destructive_hint=False,
-        idempotent_hint=False,
-        open_world_hint=True,
-    ),
-)
-async def tencent_docs_create_form(
-    title: Annotated[str, Field(min_length=1, max_length=100, description="新收集表的标题。")] = "无标题收集表",
-    response_format: Annotated[ResponseFormat, Field(description="返回 markdown 或 json。")] = "markdown",
-) -> dict | str:
-    """使用当前登录账号新建一份空白的腾讯文档原生收集表。"""
-    try:
-        result = await asyncio.to_thread(_create_sync, title)
-        return _format_result(result, response_format)
     except TencentDocsError as exc:
         raise ToolError(str(exc)) from exc
 

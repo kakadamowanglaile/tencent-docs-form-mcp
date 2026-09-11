@@ -24,6 +24,9 @@ class StdioIntegrationTests(unittest.IsolatedAsyncioTestCase):
             )
 
         names = {tool.name for tool in listed.tools}
+        self.assertEqual(len(names), 38)
+        self.assertNotIn("manage.create_file", names)
+        self.assertFalse(any(name.startswith("doc.") for name in names))
         self.assertIn("tencent_docs_openapi_generate_form_result", names)
         self.assertIn("tencent_docs_openapi_batch_insert_sheet_images", names)
         self.assertFalse(json.loads(status.content[0].text)["configured"])

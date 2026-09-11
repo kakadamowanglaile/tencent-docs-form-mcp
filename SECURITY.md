@@ -7,7 +7,6 @@
 - Windows 保存的登录文件只能由当前 Windows 账号解密；解密后 Cookie 仅保留在本地 MCP 进程内存中。
 - 工具返回值和日志不包含 Cookie、`TOK` 或用户 ID。
 - 不要将 `TENCENT_DOCS_COOKIE` 写进仓库、截图或对话。
-- 不要将 `TENCENT_DOCS_MCP_TOKEN` 写进仓库、截图或对话。本项目自动获得的 Token 只保留在进程内存。
 - 不要提交 `TENCENT_DOCS_OPENAPI_CLIENT_SECRET`、`TENCENT_DOCS_OPENAPI_ACCESS_TOKEN` 或 `TENCENT_DOCS_OPENAPI_REFRESH_TOKEN`。`openapi_setup.py` 把它们保存到当前操作系统的密钥库，不写入项目。
 - Open API Token 刷新后会更新系统密钥库中同一应用的 Token。
 - 只有创建者或管理员身份会被允许执行写入。

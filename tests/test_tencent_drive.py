@@ -34,7 +34,7 @@ class DriveClientTests(unittest.TestCase):
             },
         }
         with patch.object(self.client, "_request_json", return_value=response):
-            result = self.client.list_files("recent", count=10)
+            result = self.client.list_files("starred", count=10)
 
         self.assertEqual(result["count"], 1)
         self.assertEqual(result["files"][0]["file_id"], "abc")
