@@ -1083,8 +1083,8 @@ wheels = [
 
 [[package]]
 name = "tencent-docs-extensions-mcp"
-version = "0.7.0"
-source = { virtual = "." }
+version = "0.8.0"
+source = { editable = "." }
 dependencies = [
     { name = "browser-cookie3" },
     { name = "httpx2" },

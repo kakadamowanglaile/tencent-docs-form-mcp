@@ -1,0 +1,28 @@
+{
+  "runtime": {
+    "type": "python",
+    "version": "3.12"
+  },
+  "init": {
+    "darwin": "python -m pip install --disable-pip-version-check --upgrade git+https://github.com/kakadamowanglaile/tencent-docs-form-mcp.git@v0.8.0",
+    "linux": "python -m pip install --disable-pip-version-check --upgrade git+https://github.com/kakadamowanglaile/tencent-docs-form-mcp.git@v0.8.0",
+    "win32": "python -m pip install --disable-pip-version-check --upgrade git+https://github.com/kakadamowanglaile/tencent-docs-form-mcp.git@v0.8.0"
+  },
+  "auth": {
+    "darwin": "tencent-docs-extension auth login",
+    "linux": "tencent-docs-extension auth login",
+    "win32": "tencent-docs-extension auth login"
+  },
+  "unAuth": {
+    "darwin": "tencent-docs-extension auth logout",
+    "linux": "tencent-docs-extension auth logout",
+    "win32": "tencent-docs-extension auth logout"
+  },
+  "status": {
+    "darwin": "tencent-docs-extension auth status",
+    "linux": "tencent-docs-extension auth status",
+    "win32": "tencent-docs-extension auth status"
+  },
+  "statusMatch": "Logged in",
+  "authUrlDomain": "docs.qq.com"
+}

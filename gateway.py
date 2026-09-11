@@ -3,5 +3,10 @@
 from server import mcp
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """启动 stdio MCP 服务。"""
     mcp.run()
+
+
+if __name__ == "__main__":
+    main()

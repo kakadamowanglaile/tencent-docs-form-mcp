@@ -1,0 +1,24 @@
+{
+  "name": "Tencent Docs Extensions",
+  "name_zh": "腾讯文档扩展工具（社区版）",
+  "name_en": "Tencent Docs Extensions",
+  "description": "Use Tencent Docs form and Open API extensions not packaged in the official connector.",
+  "description_zh": "使用官方连接器未打包的收集表编辑发布、权限、协作者和批量插图等扩展功能。",
+  "description_en": "Use form publishing, permissions, collaborators, batch image insertion, and other Tencent Docs extensions absent from the official connector.",
+  "source": "tencent-docs-extensions-community",
+  "type": "cli",
+  "version": "0.8.0",
+  "minWorkbuddyVersion": "5.0.0",
+  "examples_zh": [
+    "检查这份腾讯文档收集表的题目和发布状态",
+    "把这份收集表的题目替换后发布，并验证公开链接",
+    "列出这份腾讯文档的协作者和完整权限",
+    "把这些图片批量插入腾讯文档表格"
+  ],
+  "examples_en": [
+    "Inspect the questions and release state of this Tencent Docs form",
+    "Replace the questions, publish the form, and verify its public URL",
+    "List collaborators and detailed permissions for this Tencent Docs file",
+    "Batch insert these images into a Tencent Docs spreadsheet"
+  ]
+}

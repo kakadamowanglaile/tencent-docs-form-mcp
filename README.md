@@ -200,6 +200,20 @@ Windows PowerShell 可以直接使用 [`mcp-config.windows.example.json`](exampl
 
 > 检查这个腾讯文档收集表，然后把题目改成姓名、手机号、报名项目三个问题，确认后发布。表单链接是……
 
+### WorkBuddy 市场连接器
+
+仓库的 [`workbuddy-connector`](workbuddy-connector) 是 WorkBuddy 5.0.0 及以上版本可上传的 `CLI + Skill` 连接器源目录。WorkBuddy 会管理 Python 运行时，用户不需要手工安装 Python。
+
+生成审核 ZIP：
+
+```bash
+.venv/bin/python scripts/build_workbuddy_connector.py
+```
+
+默认产物是 `dist/tencent-docs-extensions-workbuddy-0.8.0.zip`。ZIP 内的 `connector-meta.json`、`cli.json`、`icon.svg` 和 `skills/` 直接位于根目录，可在 WorkBuddy 开放平台的“发布管理 → 连接器”中上传。
+
+该连接器使用本机浏览器中已登录的腾讯文档会话。Cookie 不写入 ZIP、GitHub 或 AI 对话。点击断开后，连接器会停止使用该登录态，但不会代替用户退出浏览器里的腾讯文档账号。
+
 ## MCP 工具
 
 本项目只暴露腾讯官方 MCP 未提供的扩展工具。普通文档、表格、幻灯片、OCR、最近文件、文件夹列表和空白收集表创建等能力，请直接安装腾讯官方 MCP。

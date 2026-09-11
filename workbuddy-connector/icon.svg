@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Tencent Docs Extensions community icon">
+  <defs>
+    <linearGradient id="g" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2667ff"/>
+      <stop offset="1" stop-color="#13b8a6"/>
+    </linearGradient>
+  </defs>
+  <rect x="5" y="5" width="54" height="54" rx="15" fill="url(#g)"/>
+  <path d="M19 15h20l8 8v26H19z" fill="none" stroke="#fff" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M39 15v10h8M25 32h16M25 39h10" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="45" cy="45" r="9" fill="#13213c" stroke="#fff" stroke-width="3"/>
+  <path d="M45 40v10M40 45h10" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+</svg>

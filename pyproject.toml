@@ -1,6 +1,6 @@
 [project]
 name = "tencent-docs-extensions-mcp"
-version = "0.7.0"
+version = "0.8.0"
 description = "只提供腾讯文档官方 MCP 未打包的 Open API 和收集表扩展"
 readme = "README.md"
 license = "MIT"
@@ -14,10 +14,30 @@ dependencies = [
   "websocket-client==1.8.0",
 ]
 
+[project.scripts]
+tencent-docs-extension = "tencent_docs_cli:main"
+tencent-docs-extensions-mcp = "gateway:main"
+
 [project.urls]
 Homepage = "https://github.com/kakadamowanglaile/tencent-docs-form-mcp"
 Repository = "https://github.com/kakadamowanglaile/tencent-docs-form-mcp"
 Issues = "https://github.com/kakadamowanglaile/tencent-docs-form-mcp/issues"
 
-[tool.uv]
-package = false
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = [
+  "auth_check",
+  "browser_login",
+  "gateway",
+  "openapi_auth",
+  "openapi_client",
+  "openapi_setup",
+  "openapi_setup_ui",
+  "server",
+  "tencent_docs_cli",
+  "tencent_drive",
+  "tencent_form",
+]
