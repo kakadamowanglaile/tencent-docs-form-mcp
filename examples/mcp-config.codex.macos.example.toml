@@ -1,0 +1,13 @@
+[mcp_servers.tencent_docs_complete]
+command = "/ABSOLUTE/PATH/tencent-docs-form-mcp/.venv/bin/python"
+args = ["/ABSOLUTE/PATH/tencent-docs-form-mcp/gateway.py"]
+enabled = true
+
+[mcp_servers.tencent_docs_complete.env]
+TENCENT_DOCS_USE_BROWSER_COOKIES = "1"
+TENCENT_DOCS_BROWSER = "chrome"
+TENCENT_DOCS_OPENAPI_CLIENT_ID = ""
+TENCENT_DOCS_OPENAPI_OPEN_ID = ""
+TENCENT_DOCS_OPENAPI_ACCESS_TOKEN = ""
+TENCENT_DOCS_OPENAPI_CLIENT_SECRET = ""
+TENCENT_DOCS_OPENAPI_REFRESH_TOKEN = ""

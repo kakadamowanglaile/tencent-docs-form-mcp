@@ -7,7 +7,12 @@
         "C:\\ABSOLUTE\\PATH\\tencent-docs-form-mcp\\gateway.py"
       ],
       "env": {
-        "TENCENT_DOCS_USE_SAVED_LOGIN": "1"
+        "TENCENT_DOCS_USE_SAVED_LOGIN": "1",
+        "TENCENT_DOCS_OPENAPI_CLIENT_ID": "",
+        "TENCENT_DOCS_OPENAPI_OPEN_ID": "",
+        "TENCENT_DOCS_OPENAPI_ACCESS_TOKEN": "",
+        "TENCENT_DOCS_OPENAPI_CLIENT_SECRET": "",
+        "TENCENT_DOCS_OPENAPI_REFRESH_TOKEN": ""
       },
       "timeout": 60000
     }

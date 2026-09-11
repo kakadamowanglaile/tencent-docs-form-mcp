@@ -55,9 +55,9 @@ async def _call_tool(_context, params: CallToolRequestParams) -> CallToolResult:
 
 gateway = Server(
     "tencent-docs-complete",
-    version="0.2.0",
+    version="0.3.0",
     title="腾讯文档完整 MCP",
-    description="动态代理腾讯文档官方 MCP，并增加收集表等官方未打包能力。",
+    description="动态代理官方 MCP，并补充未打包的正式 Open API 与收集表扩展。",
     on_list_tools=_list_tools,
     on_call_tool=_call_tool,
 )

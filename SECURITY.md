@@ -8,7 +8,13 @@
 - 工具返回值和日志不包含 Cookie、`TOK` 或用户 ID。
 - 不要将 `TENCENT_DOCS_COOKIE` 写进仓库、截图或对话。
 - 不要将 `TENCENT_DOCS_MCP_TOKEN` 写进仓库、截图或对话。本项目自动获得的 Token 只保留在进程内存。
+- 不要提交 `TENCENT_DOCS_OPENAPI_CLIENT_SECRET`、`TENCENT_DOCS_OPENAPI_ACCESS_TOKEN` 或 `TENCENT_DOCS_OPENAPI_REFRESH_TOKEN`。正式 Open API 凭据只应放在本机 MCP 进程环境或操作系统安全存储中。
+- Open API Token 刷新后只更新当前 MCP 进程内存；项目不会把新 Token 写入仓库。
 - 只有创建者或管理员身份会被允许执行写入。
+
+## 正式 Open API
+
+正式 Open API 需要腾讯文档开放平台应用的 OAuth2 授权。项目只调用 `https://docs.qq.com`，不会把凭据转发到第三方服务。公开仓库不提供共享 Client Secret；每位使用者必须使用自己的开放平台应用并自行审核授权范围。
 
 ## 内部接口
 

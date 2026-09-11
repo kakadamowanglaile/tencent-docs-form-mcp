@@ -3,14 +3,27 @@
 [![跨平台测试](https://github.com/kakadamowanglaile/tencent-docs-form-mcp/actions/workflows/test.yml/badge.svg)](https://github.com/kakadamowanglaile/tencent-docs-form-mcp/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-让 WorkBuddy 等 MCP 客户端通过一个本地 MCP 使用腾讯文档的官方能力和网页扩展能力，后续操作不依赖浏览器点击自动化。
+让 Codex、Claude、WorkBuddy、Cursor 等支持本地 `stdio MCP` 的 AI 客户端，通过同一个服务调用腾讯文档。后续文档操作不依赖浏览器点击自动化。
 
 - 动态代理腾讯文档官方 MCP 的实时 `tools/list`；2026-09-11 实测为 224 个官方工具。
 - 覆盖文档、表格、幻灯片、智能表、智能文档、流程图、OCR、导入导出、权限和文件管理。
-- 补充官方 MCP 尚未打包的收集表题目编辑、发布、收藏、回收站恢复、快捷方式和置顶等功能。
+- 新增 20 个正式 Open API 工具：19 项官方 MCP 未完整打包的能力，加 1 个授权状态检查。
+- 保留公开 API 仍未提供的收集表题目编辑等网页扩展能力。
+- 当前统一服务实测暴露 260 个不重名工具；官方 MCP 后续新增工具时，总数会动态变化。
 - 官方新增工具会在下次启动或缓存刷新后自动出现，不需要本项目重新发版。
 
-> 这是社区项目，不是腾讯官方产品。官方能力转发到 [腾讯文档官方 MCP](https://docs.qq.com/openapi/mcp)；扩展能力使用腾讯文档网页当前采用的未公开接口，腾讯改版后可能失效。“完整”指官方工具全量代理加已实现扩展，不代表腾讯网页的每一个内部接口都属于稳定 API。
+> 这是社区项目，不是腾讯官方产品。项目会分别标记官方 MCP、正式 Open API 和网页内部接口。只有前两类属于腾讯公开能力；网页内部接口可能随腾讯改版失效。
+
+## 支持的 AI 客户端
+
+项目使用标准本地 `stdio MCP`，不绑定某一个 AI 产品。已经提供配置格式的客户端包括：
+
+- Codex 桌面版和 Codex CLI
+- Claude Desktop 和 Claude Code
+- WorkBuddy
+- Cursor、VS Code 等能够配置本地 stdio MCP 的客户端
+
+AI 产品本身如果不支持 MCP，无法直接加载本项目。Claude.ai、ChatGPT 网页版等只接受远程 Connector 的场景，需要另行部署 Streamable HTTP 服务；当前仓库默认是更适合个人账号和本机凭据的 stdio 版本。
 
 ## 验证情况
 
@@ -23,6 +36,9 @@
 | Windows 通过登录态新建、写入、发布、公开回读 | 已在 Windows 11 真机验证 |
 | macOS 自动获取官方 Token、动态读取 224 个工具 | 已实际验证 |
 | 官方工具经本地统一 MCP 转发 | 已实际调用验证 |
+| 正式 Open API 20 个工具的协议、参数、端点和错误处理 | 已通过模拟官方响应测试 |
+| 标准 stdio 子进程启动、工具发现和调用 | 已测试；用于 Codex、Claude Code 等客户端 |
+| 正式 Open API 调用真实腾讯账号 | 等待开放平台应用 OAuth2 凭据，尚未验证 |
 | 最近/根目录/收藏/共享/回收站列表 | 已实际验证 |
 | 收藏、回收站恢复、快捷方式、置顶 | 已用临时文件验证 |
 | Windows 保存的登录态自动连接官方 MCP | 已实现，尚未在 Windows 真机验证 |
@@ -63,6 +79,27 @@ powershell -ExecutionPolicy Bypass -File .\install-windows.ps1
 
 如果不想让本地 MCP 从登录态获取官方 Token，也可以在 [腾讯文档 MCP Token 页](https://docs.qq.com/open/auth/mcp.html) 生成 Token，然后只在本机 MCP 环境中设置 `TENCENT_DOCS_MCP_TOKEN`。不要把 Token 提交到 GitHub。
 
+## 正式 Open API 授权
+
+官方 MCP Token 与正式 Open API OAuth2 Token 是两套凭据。新增的 `tencent_docs_openapi_*` 工具需要先在[腾讯文档开放平台](https://docs.qq.com/open/)创建并审核第三方应用，再完成用户 OAuth2 授权。
+
+至少配置：
+
+```text
+TENCENT_DOCS_OPENAPI_CLIENT_ID
+TENCENT_DOCS_OPENAPI_OPEN_ID
+TENCENT_DOCS_OPENAPI_ACCESS_TOKEN
+```
+
+需要 Access Token 过期后自动刷新，再配置：
+
+```text
+TENCENT_DOCS_OPENAPI_CLIENT_SECRET
+TENCENT_DOCS_OPENAPI_REFRESH_TOKEN
+```
+
+Access Token 刷新后只保留在当前 MCP 进程内存，不会写入项目。变量模板见 [`examples/openapi.env.example`](examples/openapi.env.example)。腾讯要求 OAuth 回调地址使用 HTTPS，因此每位公开仓库使用者都需要使用自己的开放平台应用和回调服务，不能共享仓库作者的 Client Secret。
+
 ## 检查登录态
 
 把链接换成你自己创建的腾讯文档原生收集表。
@@ -86,9 +123,9 @@ $env:TENCENT_DOCS_USE_SAVED_LOGIN = "1"
 
 该命令只显示登录和编辑权限状态，不输出 Cookie。
 
-## 添加到 WorkBuddy
+## 添加到任意 MCP 客户端
 
-打开 WorkBuddy 的“设置 → MCP → 添加 MCP Server”，新增一个 stdio MCP。不要把整份示例文件覆盖到已有配置中，只添加 `tencent-docs-complete` 这一项。
+核心配置只有两个值：Python 解释器路径和 `gateway.py` 的绝对路径。JSON 客户端可以使用下面的配置；WorkBuddy、Claude Desktop 以及采用 `mcpServers` 格式的客户端均可参考。
 
 macOS 示例：
 
@@ -127,7 +164,28 @@ Windows 示例：
 }
 ```
 
-可直接复制的配置模板位于 [`examples`](examples) 目录。保存配置并重启 WorkBuddy 后，可以这样说：
+可复制的 JSON 和 TOML 模板位于 [`examples`](examples) 目录。不要整份覆盖客户端现有配置，只增加 `tencent-docs-complete` 这一项。模板中的 Open API 凭据默认留空；完成 OAuth2 授权后再填写。
+
+### Codex
+
+把对应示例中的内容加入 `~/.codex/config.toml`：
+
+- macOS/Linux：[`mcp-config.codex.macos.example.toml`](examples/mcp-config.codex.macos.example.toml)
+- Windows：[`mcp-config.codex.windows.example.toml`](examples/mcp-config.codex.windows.example.toml)
+
+### Claude Code
+
+Claude Code 可以把同样的 stdio 配置加入用户级 MCP：
+
+```bash
+claude mcp add-json --scope user tencent-docs-complete '{"type":"stdio","command":"/ABSOLUTE/PATH/tencent-docs-form-mcp/.venv/bin/python","args":["/ABSOLUTE/PATH/tencent-docs-form-mcp/gateway.py"],"env":{"TENCENT_DOCS_USE_BROWSER_COOKIES":"1","TENCENT_DOCS_BROWSER":"chrome"}}'
+```
+
+Windows PowerShell 可以直接使用 [`mcp-config.windows.example.json`](examples/mcp-config.windows.example.json) 中的服务器对象，通过 `claude mcp add-json` 添加。Claude Desktop 可在本地 MCP 或扩展开发配置中使用同一对象。
+
+### WorkBuddy 和其他 JSON 客户端
+
+使用 [`mcp-config.macos.example.json`](examples/mcp-config.macos.example.json) 或 [`mcp-config.windows.example.json`](examples/mcp-config.windows.example.json)。保存并重启客户端后，可以这样说：
 
 0.1.x 用户升级时，需要把 MCP 配置中的启动文件从 `server.py` 改为 `gateway.py`；`server.py` 仅保留本项目扩展工具。
 
@@ -155,6 +213,26 @@ Windows 示例：
 - `tencent_docs_list_versions`：实验性的云盘文件版本查看，不适用于腾讯在线文档。
 - `tencent_docs_permanently_delete_trash_item`：永久删除单个回收站项目，必须精确提供确认词。
 - `tencent_docs_clear_trash`：永久清空回收站，必须精确提供确认词。
+
+正式 Open API 工具：
+
+- `tencent_docs_openapi_status`：检查配置，也可实际校验 Access Token；不返回任何凭据值。
+- `tencent_docs_openapi_set_starred`、`tencent_docs_openapi_set_pinned`：收藏和置顶。
+- `tencent_docs_openapi_set_watermark`：设置文字水印和访客水印。
+- `tencent_docs_openapi_create_shortcut`、`tencent_docs_openapi_recover_file`：快捷方式和回收站恢复。
+- `tencent_docs_openapi_get_user_access`：读取当前用户的详细访问能力。
+- `tencent_docs_openapi_transfer_ownership`：转让所有权，要求精确确认词。
+- `tencent_docs_openapi_set_file_permission`：设置分享策略、复制下载打印和只读批注开关。
+- `tencent_docs_openapi_apply_file_permission`：申请查看或编辑权限。
+- `tencent_docs_openapi_add_collaborators`、`tencent_docs_openapi_remove_collaborator`、`tencent_docs_openapi_list_collaborators`：协作成员管理。
+- `tencent_docs_openapi_filter_files`：按目录、类型、所有者和排序条件读取文件。
+- `tencent_docs_openapi_convert_file_id`：在 fileID 与 encodedID 之间转换。
+- `tencent_docs_openapi_get_usage`、`tencent_docs_openapi_get_unread_count`：应用使用量与未读消息。
+- `tencent_docs_openapi_set_form_release`：发布、暂停或设置收集截止时间。
+- `tencent_docs_openapi_generate_form_result`：生成收集结果表格。
+- `tencent_docs_openapi_batch_insert_sheet_images`：一次插入最多 500 张表格图片。
+
+调用示例见 [`docs/OpenAPI使用示例.md`](docs/OpenAPI使用示例.md)，工具来源和实测边界见 [`docs/能力矩阵.md`](docs/能力矩阵.md)。
 
 写入工具会完整替换现有题目。使用前建议先复制一份表单进行测试。
 

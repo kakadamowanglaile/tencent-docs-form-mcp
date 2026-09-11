@@ -1,11 +1,11 @@
 ---
 name: tencent-docs-complete
-description: 通过统一 MCP 使用腾讯文档官方工具，并补充收集表题目编辑、发布、收藏、回收站恢复、快捷方式和置顶。当用户要求不使用浏览器点击自动化操作腾讯文档时使用。
+description: 通过统一 MCP 使用腾讯文档官方 MCP、官方未打包的正式 Open API，以及公开 API 仍未提供的收集表扩展。当用户要求不使用浏览器点击自动化操作腾讯文档时使用。
 ---
 
 # 腾讯文档完整 MCP
 
-优先使用官方工具；官方没有收集表题目编辑、收藏、恢复、快捷方式或置顶时，使用 `tencent_docs_*` 扩展工具。
+工具优先级：官方 MCP → `tencent_docs_openapi_*` 正式 Open API → 必要时使用网页内部接口扩展。不要把网页内部接口说成腾讯公开 API。
 
 ## 执行顺序
 
@@ -19,6 +19,9 @@ description: 通过统一 MCP 使用腾讯文档官方工具，并补充收集�
 8. 对写入结果必须看工具返回的 `verified`；不得只根据 HTTP 成功宣称已完成。
 9. 官方工具按其实时说明和 Schema 调用，不在 Skill 中假设参数。
 10. 永久删除和清空回收站只能在用户当前请求明确要求时执行，不得根据“整理”或“清理”自行推断。
+11. 收藏、置顶、恢复和快捷方式优先调用同名的 `tencent_docs_openapi_*` 工具；只有 Open API 未配置且用户接受网页接口限制时，才调用旧扩展工具。
+12. 发布、暂停或设置收集截止时间时，优先调用 `tencent_docs_openapi_set_form_release`。
+13. 转让所有权必须确认目标 Open ID，并由用户明确授权后填写工具要求的确认词。
 
 ## 题型
 
@@ -38,6 +41,8 @@ description: 通过统一 MCP 使用腾讯文档官方工具，并补充收集�
 - 仅创建者或管理员能写入和发布。
 - 任何返回内容都不得包含 Cookie、`TOK`、用户 ID 或其他会话凭证。
 - 官方 MCP Token 不得写入项目、回答、日志或测试快照。
+- 正式 Open API 使用单独的 `Client-Id`、`Open-Id`、`Access-Token`；这些值以及 Client Secret、Refresh Token 不得写入回答、日志或测试快照。
+- 先调用 `tencent_docs_openapi_status` 检查配置；需要验证有效性时使用 `validate=true`。
 
 ## 已知限制
 

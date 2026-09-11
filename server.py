@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Annotated, Literal
+import time
+from typing import Annotated, Any, Literal
 
 from mcp.server import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
@@ -12,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from browser_login import login_with_browser
 from official_mcp import OFFICIAL_MCP_URL, official_client
+from openapi_client import openapi_client
 from tencent_drive import FileListSource, TencentDriveClient
 from tencent_form import (
     TencentDocsError,
@@ -22,9 +24,10 @@ from tencent_form import (
     summarize_form,
 )
 
-mcp = MCPServer("腾讯文档原生收集表")
+mcp = MCPServer("tencent_docs_mcp")
 ResponseFormat = Literal["markdown", "json"]
 BrowserChoice = Literal["auto", "chrome", "edge", "brave", "vivaldi", "chromium"]
+PermissionPolicy = Literal["private", "members", "publicRead", "publicWrite"]
 
 
 class QuestionSpec(BaseModel):
@@ -71,6 +74,53 @@ class FormSpec(BaseModel):
         max_length=100,
         description="按显示顺序排列的问题。",
     )
+
+
+class CollaboratorSpec(BaseModel):
+    """腾讯文档公开 Open API 协作成员。"""
+
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    open_id: str = Field(min_length=1, max_length=300, description="协作者的 Open ID。")
+    role: Literal["reader", "writer"] = Field(
+        description="reader 浏览者，writer 编辑者。"
+    )
+
+
+class SheetImageSpec(BaseModel):
+    """在线表格批量插图的一张图片。"""
+
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    type: Literal[1, 2] = Field(description="1 单元格图片，2 浮动图片。")
+    url: str = Field(
+        min_length=1,
+        max_length=2000,
+        description="官方 upload_image 返回的 imageID；批量接口字段名仍为 url。",
+    )
+    width: float = Field(gt=0, le=100000, description="图片宽度。")
+    height: float = Field(gt=0, le=100000, description="图片高度。")
+    row: int = Field(ge=1, le=1000000, description="目标行号，从 1 开始。")
+    col: int = Field(ge=1, le=1000000, description="目标列号，从 1 开始。")
+    offset_x: float | None = Field(default=None, description="浮动图片横向偏移。")
+    offset_y: float | None = Field(default=None, description="浮动图片纵向偏移。")
+    clip_info: dict[str, float] | None = Field(
+        default=None,
+        description="可选裁剪信息，例如 top、right、bottom、left。",
+    )
+
+    def to_openapi(self) -> dict[str, Any]:
+        return {
+            "type": self.type,
+            "url": self.url,
+            "width": self.width,
+            "height": self.height,
+            "row": self.row,
+            "col": self.col,
+            "offsetX": self.offset_x,
+            "offsetY": self.offset_y,
+            "clip_info": self.clip_info,
+        }
 
 
 def _format_result(payload: dict, response_format: ResponseFormat) -> dict | str:
@@ -605,6 +655,492 @@ async def tencent_docs_create_and_publish_form(
     try:
         result = await asyncio.to_thread(_create_build_publish_sync, spec, anonymous)
         return _format_result(result, response_format)
+    except TencentDocsError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+@mcp.tool(
+    title="检查腾讯文档 Open API 配置",
+    annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True),
+)
+async def tencent_docs_openapi_status(
+    validate: Annotated[
+        bool,
+        Field(description="是否调用官方用户信息接口验证 Access Token。"),
+    ] = False,
+) -> dict:
+    """检查正式 Open API 的本机配置；不返回 Token、Secret 或 Open ID。"""
+    status = openapi_client.configuration_status()
+    if validate:
+        try:
+            status["identity"] = await openapi_client.validate_identity()
+        except TencentDocsError as exc:
+            raise ToolError(str(exc)) from exc
+    return status
+
+
+@mcp.tool(
+    title="通过 Open API 收藏腾讯文档",
+    annotations=ToolAnnotations(
+        read_only_hint=False,
+        destructive_hint=False,
+        idempotent_hint=True,
+        open_world_hint=True,
+    ),
+)
+async def tencent_docs_openapi_set_starred(
+    file_id: Annotated[str, Field(min_length=1, max_length=300, description="文档 fileID。")],
+    starred: Annotated[bool, Field(description="true 收藏，false 取消收藏。")],
+) -> dict:
+    """使用腾讯文档正式 Open API 修改文档收藏状态。"""
+    try:
+        return await openapi_client.set_starred(file_id, starred)
+    except TencentDocsError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+@mcp.tool(
+    title="通过 Open API 置顶腾讯文档",
+    annotations=ToolAnnotations(
+        read_only_hint=False,
+        destructive_hint=False,
+        idempotent_hint=True,
+        open_world_hint=True,
+    ),
+)
+async def tencent_docs_openapi_set_pinned(
+    file_id: Annotated[str, Field(min_length=1, max_length=300, description="文档 fileID。")],
+    pinned: Annotated[bool, Field(description="true 置顶，false 取消置顶。")],
+    folder_id: Annotated[
+        str,
+        Field(min_length=1, max_length=300, description="文档所在文件夹 ID；根目录为 /。"),
+    ] = "/",
+) -> dict:
+    """使用腾讯文档正式 Open API 置顶或取消置顶自己的文档。"""
+    try:
+        return await openapi_client.set_pinned(file_id, pinned, folder_id)
+    except TencentDocsError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+@mcp.tool(
+    title="设置腾讯文档水印",
+    annotations=ToolAnnotations(
+        read_only_hint=False,
+        destructive_hint=False,
+        idempotent_hint=True,
+        open_world_hint=True,
+    ),
+)
+async def tencent_docs_openapi_set_watermark(
+    file_id: Annotated[str, Field(min_length=1, max_length=300, description="文档 fileID。")],
+    text: Annotated[
+        str,
+        Field(max_length=500, description="自定义水印文字；空字符串表示取消文字水印。"),
+    ] = "",
+    visitor_mark: Annotated[bool, Field(description="是否显示访客身份水印。")]=False,
+    margin: Annotated[
+        Literal["loose", "tight"],
+        Field(description="loose 宽松型，tight 密集型。"),
+    ] = "loose",
+    hide_from_owner: Annotated[
+        bool,
+        Field(description="是否对文档所有者隐藏水印。"),
+    ] = True,
+) -> dict:
+    """设置正式 Open API 水印；收集表、流程图和思维导图不支持。"""
+    try:
+        return await openapi_client.set_watermark(
+            file_id,
+            text=text,
+            visitor_mark=visitor_mark,
+            margin=margin,
+            hide_from_owner=hide_from_owner,
+        )
+    except TencentDocsError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+@mcp.tool(
+    title="通过 Open API 创建快捷方式",
+    annotations=ToolAnnotations(
+        read_only_hint=False,
+        destructive_hint=False,
+        idempotent_hint=False,
+        open_world_hint=True,
+    ),
+)
+async def tencent_docs_openapi_create_shortcut(
+    file_id: Annotated[str, Field(min_length=1, max_length=300, description="源文档 fileID。")],
+    target_folder_id: Annotated[
+        str,
+        Field(min_length=1, max_length=300, description="目标文件夹 ID；根目录为 /。"),
+    ] = "/",
+    share_key: Annotated[
+        str,
+        Field(max_length=500, description="共享文件夹场景所需的最外层 shareKey。"),
+    ] = "",
+) -> dict:
+    """使用腾讯文档正式 Open API 创建文档快捷方式。"""
+    try:
+        return await openapi_client.create_shortcut(file_id, target_folder_id, share_key)
+    except TencentDocsError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+@mcp.tool(
+    title="通过 Open API 恢复腾讯文档",
+    annotations=ToolAnnotations(
+        read_only_hint=False,
+        destructive_hint=False,
+        idempotent_hint=True,
+        open_world_hint=True,
+    ),
+)
+async def tencent_docs_openapi_recover_file(
+    file_id: Annotated[
+        str,
+        Field(min_length=1, max_length=300, description="回收站内、自身拥有的文档 fileID。"),
+    ],
+) -> dict:
+    """使用腾讯文档正式 Open API 恢复回收站中的自有文档。"""
+    try:
+        return await openapi_client.recover_file(file_id)
+    except TencentDocsError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+@mcp.tool(
+    title="查询腾讯文档用户访问权限",
+    annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True),
+)
+async def tencent_docs_openapi_get_user_access(
+    file_id: Annotated[str, Field(min_length=1, max_length=300, description="文档 fileID。")],
+) -> dict:
+    """查询当前授权用户的查看、编辑、下载、副本和水印权限。"""
+    try:
+        return await openapi_client.get_user_access(file_id)
+    except TencentDocsError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+@mcp.tool(
+    title="转让腾讯文档所有权",
+    annotations=ToolAnnotations(
+        read_only_hint=False,
+        destructive_hint=True,
+        idempotent_hint=False,
+        open_world_hint=True,
+    ),
+)
+async def tencent_docs_openapi_transfer_ownership(
+    file_id: Annotated[str, Field(min_length=1, max_length=300, description="文档 fileID。")],
+    owner_open_id: Annotated[
+        str,
+        Field(min_length=1, max_length=300, description="新所有者的 Open ID。"),
+    ],
+    confirmation: Annotated[
+        str,
+        Field(description="必须精确填写：转让所有权。"),
+    ],
+) -> dict:
+    """把文档所有权转给指定用户；这是高影响操作，需要明确确认。"""
+    if confirmation != "转让所有权":
+        raise ToolError("拒绝执行：confirmation 必须精确填写“转让所有权”。")
+    try:
+        return await openapi_client.transfer_ownership(file_id, owner_open_id)
+    except TencentDocsError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+@mcp.tool(
+    title="设置完整腾讯文档权限",
+    annotations=ToolAnnotations(
+        read_only_hint=False,
+        destructive_hint=True,
+        idempotent_hint=True,
+        open_world_hint=True,
+    ),
+)
+async def tencent_docs_openapi_set_file_permission(
+    file_id: Annotated[str, Field(min_length=1, max_length=300, description="文档 fileID。")],
+    policy: Annotated[
+        PermissionPolicy | None,
+        Field(description="private、members、publicRead 或 publicWrite；可不修改。"),
+    ] = None,
+    copy_enabled: Annotated[
+        bool | None,
+        Field(description="是否允许查看者复制、下载和打印；可不修改。"),
+    ] = None,
+    reader_comment_enabled: Annotated[
+        bool | None,
+        Field(description="是否允许只读者批注；可不修改。"),
+    ] = None,
+) -> dict:
+    """设置官方 MCP 未暴露的完整分享权限，包括复制和只读批注开关。"""
+    try:
+        return await openapi_client.set_file_permission(
+            file_id,
+            policy=policy,
+            copy_enabled=copy_enabled,
+            reader_comment_enabled=reader_comment_enabled,
+        )
+    except TencentDocsError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+@mcp.tool(
+    title="申请腾讯文档权限",
+    annotations=ToolAnnotations(
+        read_only_hint=False,
+        destructive_hint=False,
+        idempotent_hint=False,
+        open_world_hint=True,
+    ),
+)
+async def tencent_docs_openapi_apply_file_permission(
+    file_id: Annotated[str, Field(min_length=1, max_length=300, description="文档 fileID。")],
+    permission_type: Annotated[
+        Literal["read", "write"],
+        Field(description="read 申请查看，write 申请编辑。"),
+    ],
+    memo: Annotated[str, Field(max_length=500, description="申请备注。")]= "",
+) -> dict:
+    """通过正式 Open API 向文档所有者申请查看或编辑权限。"""
+    try:
+        return await openapi_client.apply_file_permission(file_id, permission_type, memo)
+    except TencentDocsError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+@mcp.tool(
+    title="添加腾讯文档协作成员",
+    annotations=ToolAnnotations(
+        read_only_hint=False,
+        destructive_hint=False,
+        idempotent_hint=True,
+        open_world_hint=True,
+    ),
+)
+async def tencent_docs_openapi_add_collaborators(
+    file_id: Annotated[str, Field(min_length=1, max_length=300, description="文档 fileID。")],
+    collaborators: Annotated[
+        list[CollaboratorSpec],
+        Field(min_length=1, max_length=100, description="要添加的浏览者或编辑者。"),
+    ],
+) -> dict:
+    """使用正式 Open API 批量添加指定 Open ID 的协作成员。"""
+    payload = [
+        {"type": "user", "role": item.role, "id": item.open_id}
+        for item in collaborators
+    ]
+    try:
+        return await openapi_client.add_collaborators(file_id, payload)
+    except TencentDocsError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+@mcp.tool(
+    title="移除腾讯文档协作成员",
+    annotations=ToolAnnotations(
+        read_only_hint=False,
+        destructive_hint=True,
+        idempotent_hint=True,
+        open_world_hint=True,
+    ),
+)
+async def tencent_docs_openapi_remove_collaborator(
+    file_id: Annotated[str, Field(min_length=1, max_length=300, description="文档 fileID。")],
+    collaborator_open_id: Annotated[
+        str,
+        Field(min_length=1, max_length=300, description="要移除的协作者 Open ID。"),
+    ],
+) -> dict:
+    """使用正式 Open API 移除一个文档协作成员。"""
+    try:
+        return await openapi_client.remove_collaborator(file_id, collaborator_open_id)
+    except TencentDocsError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+@mcp.tool(
+    title="查询腾讯文档协作成员",
+    annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True),
+)
+async def tencent_docs_openapi_list_collaborators(
+    file_id: Annotated[str, Field(min_length=1, max_length=300, description="文档 fileID。")],
+) -> dict:
+    """使用正式 Open API 查询文档的浏览者和编辑者列表。"""
+    try:
+        return await openapi_client.list_collaborators(file_id)
+    except TencentDocsError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+@mcp.tool(
+    title="按条件过滤腾讯文档",
+    annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True),
+)
+async def tencent_docs_openapi_filter_files(
+    list_type: Annotated[
+        str,
+        Field(min_length=1, max_length=100, description="官方列表类型，默认 folder。"),
+    ] = "folder",
+    sort_type: Annotated[
+        str,
+        Field(min_length=1, max_length=100, description="官方排序类型，默认 browse。"),
+    ] = "browse",
+    ascending: Annotated[bool, Field(description="是否正序排列。")]=False,
+    folder_id: Annotated[
+        str,
+        Field(min_length=1, max_length=300, description="文件夹 ID；根目录为 /。"),
+    ] = "/",
+    start: Annotated[int, Field(ge=0, description="首次为 0，后续使用响应中的 next。")]=0,
+    limit: Annotated[int, Field(ge=1, le=20, description="本次最多返回 20 条。")]=20,
+    owned_only: Annotated[bool, Field(description="是否仅返回当前用户拥有的文件。")]=False,
+    file_types: Annotated[
+        str,
+        Field(max_length=500, description="文件类型；多个类型用连字符分隔，空值表示全部。"),
+    ] = "",
+) -> dict:
+    """调用正式列表过滤接口，支持目录、所有者、类型、排序和分页。"""
+    try:
+        return await openapi_client.filter_files(
+            list_type=list_type,
+            sort_type=sort_type,
+            ascending=ascending,
+            folder_id=folder_id,
+            start=start,
+            limit=limit,
+            owned_only=owned_only,
+            file_types=file_types,
+        )
+    except TencentDocsError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+@mcp.tool(
+    title="转换腾讯文档 fileID",
+    annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True),
+)
+async def tencent_docs_openapi_convert_file_id(
+    direction: Annotated[
+        Literal["file_to_encoded", "encoded_to_file"],
+        Field(description="file_to_encoded 或 encoded_to_file。"),
+    ],
+    value: Annotated[str, Field(min_length=1, max_length=500, description="要转换的 ID。")],
+) -> dict:
+    """在内部 fileID 与腾讯文档 URL 使用的 encodedID 之间转换。"""
+    conversion_type = 1 if direction == "file_to_encoded" else 2
+    try:
+        return await openapi_client.convert_file_id(conversion_type, value)
+    except TencentDocsError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+@mcp.tool(
+    title="查询腾讯文档 Open API 使用量",
+    annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True),
+)
+async def tencent_docs_openapi_get_usage() -> dict:
+    """查询当前开放平台应用的 Open API 资源总量和已使用数量。"""
+    try:
+        return await openapi_client.get_usage()
+    except TencentDocsError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+@mcp.tool(
+    title="查询腾讯文档未读消息数",
+    annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True),
+)
+async def tencent_docs_openapi_get_unread_count() -> dict:
+    """通过正式 Open API 查询当前用户的未读消息数量。"""
+    try:
+        return await openapi_client.get_unread_count()
+    except TencentDocsError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+@mcp.tool(
+    title="设置腾讯文档收集表发布状态",
+    annotations=ToolAnnotations(
+        read_only_hint=False,
+        destructive_hint=False,
+        idempotent_hint=True,
+        open_world_hint=True,
+    ),
+)
+async def tencent_docs_openapi_set_form_release(
+    form_id: Annotated[str, Field(min_length=1, max_length=300, description="收集表 formID。")],
+    mode: Annotated[
+        Literal["publish", "pause", "deadline"],
+        Field(description="publish 永久发布，pause 暂停，deadline 到期停止。"),
+    ],
+    end_time: Annotated[
+        int | None,
+        Field(ge=1, description="mode=deadline 时必填，Unix 秒级时间戳。"),
+    ] = None,
+) -> dict:
+    """使用正式 Open API 发布、暂停收集表或设置自动截止时间。"""
+    now = int(time.time())
+    if mode == "publish":
+        resolved_end_time = 0
+    elif mode == "pause":
+        resolved_end_time = now - 1
+    else:
+        if end_time is None or end_time <= now:
+            raise ToolError("mode=deadline 时 end_time 必须是未来的 Unix 秒级时间戳。")
+        resolved_end_time = end_time
+    try:
+        return await openapi_client.set_form_release(form_id, resolved_end_time)
+    except TencentDocsError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+@mcp.tool(
+    title="生成腾讯文档收集结果",
+    annotations=ToolAnnotations(
+        read_only_hint=False,
+        destructive_hint=False,
+        idempotent_hint=False,
+        open_world_hint=True,
+    ),
+)
+async def tencent_docs_openapi_generate_form_result(
+    form_id: Annotated[str, Field(min_length=1, max_length=300, description="收集表 formID。")],
+) -> dict:
+    """使用正式 Open API 生成收集结果表格，并返回关联文件信息。"""
+    try:
+        return await openapi_client.generate_form_result(form_id)
+    except TencentDocsError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+@mcp.tool(
+    title="批量插入腾讯在线表格图片",
+    annotations=ToolAnnotations(
+        read_only_hint=False,
+        destructive_hint=False,
+        idempotent_hint=False,
+        open_world_hint=True,
+    ),
+)
+async def tencent_docs_openapi_batch_insert_sheet_images(
+    book_id: Annotated[str, Field(min_length=1, max_length=300, description="在线表格 fileID。")],
+    sheet_id: Annotated[str, Field(min_length=1, max_length=300, description="子表 sheetID。")],
+    images: Annotated[
+        list[SheetImageSpec],
+        Field(min_length=1, max_length=500, description="一次最多插入 500 张图片。"),
+    ],
+) -> dict:
+    """用 upload_image 返回的 imageID 批量插入单元格图片或浮动图片。"""
+    try:
+        return await openapi_client.batch_insert_sheet_images(
+            book_id,
+            sheet_id,
+            [item.to_openapi() for item in images],
+        )
     except TencentDocsError as exc:
         raise ToolError(str(exc)) from exc
 
